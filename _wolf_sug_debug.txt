@@ -1,0 +1,77 @@
+nes = []
+        for r in sorted(kill_hist.keys()):
+            kill_lines.append(f"  第{r}晚：击杀玩家{kill_hist[r]}")
+        kill_hist_str = "\n".join(kill_lines) if kill_lines else "  （尚无击杀记录）"
+
+        extra = f"""【当前是第{state.get("game_round", 0) + 1}晚】你的真人队友7号正在等你讨论今晚杀谁。
+
+前几晚你们的击杀记录：
+{kill_hist_str}
+
+存活玩家: {", ".join(str(p) for p in alive_ids)}
+可杀目标: {valid_targets_str}
+已淘汰的玩家: {elim_info}
+
+{chat_context}
+规则提醒：
+1. 直接说出想法，不要用"我是X号玩家"这种公开演讲腔
+2. 简短、像真实队友聊天一样
+3. 你不是第一次发言！参考下面的对话历史继续聊，不要从头开始
+4. 如果队友已经说了想杀谁，你就回应他的选择，不要重新提议
+5. ⚠️ 已淘汰的玩家绝对不能再杀！可杀目标只包含存活玩家！
+5. ⚠️ 已淘汰的玩家绝对不能杀！可杀目标只包含存活玩家！"""
+    else:
+        # Build kill history
+        kill_hist = state.get('_werewolf_kill_history', {})
+        kill_lines = []
+        for r in sorted(kill_hist.keys()):
+            kill_lines.append(f"  第{r}晚：击杀玩家{kill_hist[r]}")
+        kill_hist_str = "\n".join(kill_lines) if kill_lines else "  （尚无击杀记录）"
+
+        extra = f"""【当前是第{state.get("game_round", 0) + 1}晚】你的真人队友7号正在等你讨论今晚杀谁。
+
+前几晚你们的击杀记录：
+{kill_hist_str}
+
+存活玩家: {", ".join(str(p) for p in alive_ids)}
+可杀目标: {valid_targets_str}
+已淘汰的玩家: {elim_info}
+
+请就今晚杀谁给出你的策略建议。
+规则提醒：
+1. 直接说出想法，不要用"我是X号玩家"这种公开演讲腔
+2. 简短、像真实队友聊天一样
+3. 绝对不要长篇大论分析局势，这是秘密讨论不是公开发言！
+4. 只讨论杀谁和策略，不要扯其他内容
+5. ⚠️ 已淘汰的玩家绝对不能再杀！可杀目标只包含存活玩家！
+5. ⚠️ 已淘汰的玩家绝对不能杀！可杀目标只包含存活玩家！"""
+
+    prompt = _build_role_prompt(player, state, extra, is_secret_chat=True)
+    if chat_history:
+        llm_prompt = "继续。"
+    else:
+        llm_prompt = "请就今晚杀谁给出你的策略建议。简短直接，像队友聊天，不要用公开演讲腔。"
+    # Build messages with proper role alternation (user/assistant/user/...)
+    # Standard chat APIs require first non-system message to be user.
+    # The old history_for_llm approach violated this, causing DeepSeek to
+    # drop messages and the teammate to "forget" the conversation.
+    if chat_history:
+        llm = get_llm(temperature=0.8)
+        messages = [SystemMessage(content=prompt)]
+        first_is_assistant = chat_history and chat_history[0].get("from") != 7
+        if first_is_assistant:
+            # Synthetic user message to match the initial suggestion prompt
+            messages.append(HumanMessage(content="请就今晚杀谁给出你的策略建议。"))
+        for msg in chat_history:
+            role = "assistant" if msg.get("from") != 7 else "user"
+            content = msg.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            else:
+                messages.append(AIMessage(content=content))
+        response = llm.invoke(messages)
+        suggestion = response.content or ""
+    else:
+        suggestion = _call_llm_text(prompt, llm_prompt, temperature=0.8)
+    _add_to_memory(state, wolf_id, [{"role": "assistant", "content": suggestion}])
+    return suggestion or ""

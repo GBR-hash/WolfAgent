@@ -1,0 +1,54 @@
+你是第一位发言者）"
+
+    # Build eliminated info
+    elim_parts = []
+    for eid, erole in eliminated_roles.items():
+        elim_parts.append(f"玩家{eid}({_get_role_name(erole)})")
+    elim_str = ", ".join(elim_parts) if elim_parts else "无"
+
+    night_result = state.get("god_announcement", "（上一晚没有玩家被淘汰）")
+
+    # Build previous round vote history for context
+    vote_history_text = ""
+    if round_num > 1:
+        prev_round = round_num - 1
+        vh = state.get('votes_history', {})
+        prev_votes = vh.get(prev_round, {})
+        if prev_votes:
+            vote_lines = []
+            for v_id, tgt in prev_votes.items():
+                tgt_str = f"??{tgt}" if tgt and int(tgt) > 0 else "??"
+                vote_lines.append(f"??{v_id}→{tgt_str}")
+            from collections import Counter
+            tally = Counter(int(t) for t in prev_votes.values() if t and int(t) > 0)
+            tally_lines = [f"??{pid}:{cnt}?" for pid, cnt in tally.most_common()]
+            vote_history_text = "???" + "; ".join(vote_lines) + "????" + ", ".join(tally_lines)
+            if tally:
+                max_cnt = tally.most_common(1)[0][1]
+                top = [pid for pid, cnt in tally.items() if cnt == max_cnt]
+                if len(top) == 1:
+                    vote_history_text += f"??????{top[0]}?????"
+                else:
+                    vote_history_text += "??????"
+
+    extra = f'''
+你是第{len(speeches) + 1}位发言者。
+本轮之前的发言：
+{speeches_summary}
+
+昨晚的结果：{night_result}
+
+上轮投票详情：
+{vote_history_text}
+
+当前是第{round_num}轮。
+已经被淘汰的玩家（含身份）：{elim_str}
+
+请发表你的观点。记住：
+- 如果玩家已被淘汰，不要对他们发言
+- 基于已知信息做合理推理
+- 如果你是狼人：可选策略——低调装村民，或适时跳假预言家/女巫混淆视听
+- 如果你是预言家：有查验结果就公布，不必死等查到狼人才跳
+- 如果你是女巫：有用药信息就果断表明身份，不要只暗示
+- 如果你是村民：大多数时候诚实分析，必要时挡刀（假装神职吸引狼人攻击）
+- 一定要明确投票建议：建议投票给谁'''

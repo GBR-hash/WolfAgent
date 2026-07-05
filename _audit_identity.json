@@ -1,0 +1,657 @@
+{
+  "eliminated_roles": [
+    {
+      "file": "graph.py",
+      "line": 255,
+      "text": "'eliminated_roles': {},"
+    },
+    {
+      "file": "graph.py",
+      "line": 782,
+      "text": "eliminated_roles = dict(state.get('eliminated_roles', {}))"
+    },
+    {
+      "file": "graph.py",
+      "line": 801,
+      "text": "eliminated_roles[pid] = players[pid_str]['role']"
+    },
+    {
+      "file": "graph.py",
+      "line": 812,
+      "text": "log.warning('TRACE night_killed_ids now: %s, eliminated_roles: %s', night_killed_ids, eliminated_roles)"
+    },
+    {
+      "file": "graph.py",
+      "line": 879,
+      "text": "# Merge all dead players' roles into eliminated_roles for final display"
+    },
+    {
+      "file": "graph.py",
+      "line": 882,
+      "text": "eliminated_roles[int(pid_str)] = pdata['role']"
+    },
+    {
+      "file": "graph.py",
+      "line": 894,
+      "text": "'eliminated_all': eliminated_all, 'eliminated_roles': eliminated_roles,"
+    },
+    {
+      "file": "graph.py",
+      "line": 938,
+      "text": "'eliminated_all': eliminated_all, 'eliminated_roles': eliminated_roles,"
+    },
+    {
+      "file": "graph.py",
+      "line": 958,
+      "text": "log.warning('TRACE day_announcement RETURN(non-gameover) night_killed_ids=%s eliminated_roles=%s', night_killed_ids, eli"
+    },
+    {
+      "file": "graph.py",
+      "line": 988,
+      "text": "eliminated_roles = state.get('eliminated_roles', {})"
+    },
+    {
+      "file": "graph.py",
+      "line": 1050,
+      "text": "else f'玩家{eid}({_role_cn(eliminated_roles.get(eid, \"?\"))})'"
+    },
+    {
+      "file": "graph.py",
+      "line": 1202,
+      "text": "log.warning('TRACE day_announcement RETURN(non-gameover) night_killed_ids=%s eliminated_roles=%s', night_killed_ids, eli"
+    },
+    {
+      "file": "graph.py",
+      "line": 1230,
+      "text": "eliminated_roles = state.get('eliminated_roles', {})"
+    },
+    {
+      "file": "graph.py",
+      "line": 1282,
+      "text": "f'玩家{eid}({_role_cn(eliminated_roles.get(eid, \"?\"))})'"
+    },
+    {
+      "file": "graph.py",
+      "line": 1445,
+      "text": "eliminated_roles = dict(state.get('eliminated_roles', {}))"
+    },
+    {
+      "file": "graph.py",
+      "line": 1457,
+      "text": "eliminated_roles[eliminated_player] = el_role"
+    },
+    {
+      "file": "graph.py",
+      "line": 1529,
+      "text": "# Merge all dead players' roles into eliminated_roles for final display"
+    },
+    {
+      "file": "graph.py",
+      "line": 1532,
+      "text": "eliminated_roles[int(pid_str)] = pdata['role']"
+    },
+    {
+      "file": "graph.py",
+      "line": 1558,
+      "text": "'eliminated_roles': eliminated_roles,"
+    },
+    {
+      "file": "graph.py",
+      "line": 1580,
+      "text": "log.warning('TRACE day_announcement RETURN(non-gameover) night_killed_ids=%s eliminated_roles=%s', night_killed_ids, eli"
+    },
+    {
+      "file": "graph.py",
+      "line": 1626,
+      "text": "eliminated_roles = state.get('eliminated_roles', {})"
+    },
+    {
+      "file": "graph.py",
+      "line": 1658,
+      "text": "role = eliminated_roles.get(eliminated, '?')"
+    },
+    {
+      "file": "players.py",
+      "line": 58,
+      "text": "eliminated_roles = state.get(\"eliminated_roles\", {})"
+    },
+    {
+      "file": "players.py",
+      "line": 60,
+      "text": "eliminated_roles = {k: v for k, v in eliminated_roles.items() if int(k) not in night_killed}"
+    },
+    {
+      "file": "players.py",
+      "line": 61,
+      "text": "role_parts = [f\"玩家{k}({_get_role_name(v)})\" for k, v in eliminated_roles.items()]"
+    },
+    {
+      "file": "players.py",
+      "line": 64,
+      "text": "import logging; logging.getLogger(\"wolfagent\").warning(\"TRACE build_role_prompt player=%s role=%s night_killed=%s elimin"
+    },
+    {
+      "file": "players.py",
+      "line": 459,
+      "text": "eliminated_roles = state.get(\"eliminated_roles\", {})"
+    },
+    {
+      "file": "players.py",
+      "line": 461,
+      "text": "eliminated_roles = {k: v for k, v in eliminated_roles.items() if int(k) not in night_killed}"
+    },
+    {
+      "file": "players.py",
+      "line": 462,
+      "text": "role_parts = [f\"玩家{k}({_get_role_name(v)})\" for k, v in eliminated_roles.items()]"
+    },
+    {
+      "file": "players.py",
+      "line": 631,
+      "text": "eliminated_roles = state.get(\"eliminated_roles\", {})"
+    },
+    {
+      "file": "players.py",
+      "line": 633,
+      "text": "eliminated_roles = {k: v for k, v in eliminated_roles.items() if int(k) not in night_killed}"
+    },
+    {
+      "file": "players.py",
+      "line": 643,
+      "text": "role_parts = [f\"玩家{k}({_get_role_name(v)})\" for k, v in eliminated_roles.items()]"
+    },
+    {
+      "file": "players.py",
+      "line": 801,
+      "text": "eliminated_roles = state.get(\"eliminated_roles\", {})"
+    },
+    {
+      "file": "players.py",
+      "line": 803,
+      "text": "eliminated_roles = {k: v for k, v in eliminated_roles.items() if int(k) not in night_killed}"
+    },
+    {
+      "file": "players.py",
+      "line": 809,
+      "text": "role_parts = [f\"玩家{k}({_get_role_name(v)})\" for k, v in eliminated_roles.items()]"
+    },
+    {
+      "file": "players.py",
+      "line": 861,
+      "text": "role_parts = [f\"玩家{k}({_get_role_name(v)})\" for k, v in eliminated_roles.items()]"
+    }
+  ],
+  "_night_killed_ids": [
+    {
+      "file": "graph.py",
+      "line": 257,
+      "text": "'_night_killed_ids': [],"
+    },
+    {
+      "file": "graph.py",
+      "line": 784,
+      "text": "night_killed_ids = list(state.get('_night_killed_ids', []))"
+    },
+    {
+      "file": "graph.py",
+      "line": 896,
+      "text": "'_night_killed_ids': night_killed_ids,"
+    },
+    {
+      "file": "graph.py",
+      "line": 940,
+      "text": "'_night_killed_ids': night_killed_ids,"
+    },
+    {
+      "file": "graph.py",
+      "line": 1047,
+      "text": "night_killed_set = set(state.get('_night_killed_ids', []))"
+    },
+    {
+      "file": "players.py",
+      "line": 59,
+      "text": "night_killed = set(state.get(\"_night_killed_ids\", []))"
+    },
+    {
+      "file": "players.py",
+      "line": 460,
+      "text": "night_killed = set(state.get(\"_night_killed_ids\", []))"
+    },
+    {
+      "file": "players.py",
+      "line": 632,
+      "text": "night_killed = set(state.get(\"_night_killed_ids\", []))"
+    },
+    {
+      "file": "players.py",
+      "line": 802,
+      "text": "night_killed = set(state.get(\"_night_killed_ids\", []))"
+    }
+  ],
+  "eliminated_all": [
+    {
+      "file": "graph.py",
+      "line": 253,
+      "text": "'eliminated_all': [],"
+    },
+    {
+      "file": "graph.py",
+      "line": 780,
+      "text": "eliminated_all = list(state.get('eliminated_all', []))"
+    },
+    {
+      "file": "graph.py",
+      "line": 796,
+      "text": "eliminated_all.append(pid)"
+    },
+    {
+      "file": "graph.py",
+      "line": 894,
+      "text": "'eliminated_all': eliminated_all, 'eliminated_roles': eliminated_roles,"
+    },
+    {
+      "file": "graph.py",
+      "line": 938,
+      "text": "'eliminated_all': eliminated_all, 'eliminated_roles': eliminated_roles,"
+    },
+    {
+      "file": "graph.py",
+      "line": 986,
+      "text": "eliminated_all = state.get('eliminated_all', [])"
+    },
+    {
+      "file": "graph.py",
+      "line": 1051,
+      "text": "for eid in eliminated_all"
+    },
+    {
+      "file": "graph.py",
+      "line": 1052,
+      "text": ") if eliminated_all else '无'"
+    },
+    {
+      "file": "graph.py",
+      "line": 1061,
+      "text": "'eliminated_players': eliminated_all,"
+    },
+    {
+      "file": "graph.py",
+      "line": 1284,
+      "text": "for eid in state.get('eliminated_all', [])"
+    },
+    {
+      "file": "graph.py",
+      "line": 1286,
+      "text": ") if state.get('eliminated_all') else '无'"
+    },
+    {
+      "file": "graph.py",
+      "line": 1447,
+      "text": "eliminated_all = list(state.get('eliminated_all', []))"
+    },
+    {
+      "file": "graph.py",
+      "line": 1453,
+      "text": "eliminated_all.append(eliminated_player)"
+    },
+    {
+      "file": "graph.py",
+      "line": 1556,
+      "text": "'votes': votes_all, 'eliminated_all': eliminated_all,"
+    }
+  ],
+  "elim_info": [
+    {
+      "file": "graph.py",
+      "line": 1048,
+      "text": "elim_info = ', '.join("
+    },
+    {
+      "file": "graph.py",
+      "line": 1063,
+      "text": "'eliminated_info': elim_info,"
+    },
+    {
+      "file": "graph.py",
+      "line": 1067,
+      "text": "'prompt': f'Round {round_num} 发言。身份:{_role_cn(role)}。昨晚:{god_announcement}\\n之前发言:\\n{prev_summary}\\n已淘汰:{elim_info}\\n请发表观"
+    },
+    {
+      "file": "graph.py",
+      "line": 1280,
+      "text": "elim_info = ', '.join("
+    },
+    {
+      "file": "graph.py",
+      "line": 1296,
+      "text": "'alive_players': alive, 'eliminated_info': elim_info,"
+    },
+    {
+      "file": "graph.py",
+      "line": 1300,
+      "text": "'prompt': f'Round {round_num} 投票。\\n发言:\\n{speeches_summary}\\n可投:{valid_targets}。回复编号或弃权。已淘汰:{elim_info}',"
+    },
+    {
+      "file": "graph.py",
+      "line": 1654,
+      "text": "elim_info = ''"
+    },
+    {
+      "file": "graph.py",
+      "line": 1660,
+      "text": "elim_info = f'玩家{eliminated}({_role_cn(role)})'"
+    },
+    {
+      "file": "graph.py",
+      "line": 1676,
+      "text": "'eliminated_info': elim_info,"
+    },
+    {
+      "file": "graph.py",
+      "line": 1680,
+      "text": "'prompt': f'第{round_num}轮投票结果\\n' + '\\n'.join(vote_lines) + '\\n票数: ' + ' | '.join(count_lines) + (f'\\n淘汰: {elim_info}' if"
+    },
+    {
+      "file": "players.py",
+      "line": 464,
+      "text": "elim_info = \", \".join(role_parts + night_parts) if (role_parts or night_parts) else \"无\""
+    },
+    {
+      "file": "players.py",
+      "line": 525,
+      "text": "已淘汰的玩家: {elim_info}"
+    },
+    {
+      "file": "players.py",
+      "line": 551,
+      "text": "已淘汰的玩家: {elim_info}"
+    },
+    {
+      "file": "players.py",
+      "line": 645,
+      "text": "elim_info_str = \", \".join(role_parts + night_parts) if (role_parts or night_parts) else \"无\""
+    },
+    {
+      "file": "players.py",
+      "line": 726,
+      "text": "已经被淘汰的玩家（含身份）：{elim_info_str}"
+    },
+    {
+      "file": "players.py",
+      "line": 778,
+      "text": "??????{elim_info_str}"
+    },
+    {
+      "file": "players.py",
+      "line": 811,
+      "text": "elim_info_str = \", \".join(role_parts + night_parts) if (role_parts or night_parts) else \"无\""
+    },
+    {
+      "file": "players.py",
+      "line": 820,
+      "text": "已被淘汰的玩家（含身份）：{elim_info_str}"
+    },
+    {
+      "file": "players.py",
+      "line": 863,
+      "text": "elim_info = \", \".join(role_parts + night_parts) if (role_parts or night_parts) else \"无\""
+    }
+  ],
+  "god_announcement": [
+    {
+      "file": "graph.py",
+      "line": 259,
+      "text": "'god_announcement': '',"
+    },
+    {
+      "file": "graph.py",
+      "line": 338,
+      "text": "'god_announcement': '', '_night_lines': night_lines,"
+    },
+    {
+      "file": "graph.py",
+      "line": 826,
+      "text": "god_announcement = ' '.join(announcement_parts)"
+    },
+    {
+      "file": "graph.py",
+      "line": 892,
+      "text": "'god_announcement': god_announcement, 'eliminated_tonight': killed_tonight,"
+    },
+    {
+      "file": "graph.py",
+      "line": 936,
+      "text": "'god_announcement': god_announcement, 'eliminated_tonight': killed_tonight,"
+    },
+    {
+      "file": "graph.py",
+      "line": 984,
+      "text": "god_announcement = state.get('god_announcement', '')"
+    },
+    {
+      "file": "graph.py",
+      "line": 1059,
+      "text": "'god_announcement': god_announcement, 'alive_players': alive,"
+    },
+    {
+      "file": "graph.py",
+      "line": 1067,
+      "text": "'prompt': f'Round {round_num} 发言。身份:{_role_cn(role)}。昨晚:{god_announcement}\\n之前发言:\\n{prev_summary}\\n已淘汰:{elim_info}\\n请发表观"
+    },
+    {
+      "file": "graph.py",
+      "line": 1571,
+      "text": "'god_announcement': state.get('god_announcement', '') + ' | ' + elimination_msg,"
+    },
+    {
+      "file": "players.py",
+      "line": 647,
+      "text": "night_result = state.get(\"god_announcement\", \"（上一晚没有玩家被淘汰）\")"
+    }
+  ],
+  "身份": [
+    {
+      "file": "graph.py",
+      "line": 179,
+      "text": "msg = f'你是{i}号玩家。你的身份是：{_role_cn(role)}'"
+    },
+    {
+      "file": "graph.py",
+      "line": 201,
+      "text": "log.info('真人玩家7号身份: %s', _role_cn(roles[6]))"
+    },
+    {
+      "file": "graph.py",
+      "line": 1049,
+      "text": "f'玩家{eid}(身份未知)' if eid in night_killed_set"
+    },
+    {
+      "file": "graph.py",
+      "line": 1067,
+      "text": "'prompt': f'Round {round_num} 发言。身份:{_role_cn(role)}。昨晚:{god_announcement}\\n之前发言:\\n{prev_summary}\\n已淘汰:{elim_info}\\n请发表观"
+    },
+    {
+      "file": "players.py",
+      "line": 62,
+      "text": "night_parts = [f\"玩家{pid}(身份未知)\" for pid in night_killed]"
+    },
+    {
+      "file": "players.py",
+      "line": 210,
+      "text": "wolf_hint = \"激进伪装：优先跳假身份混淆视听，大胆指认好人\""
+    },
+    {
+      "file": "players.py",
+      "line": 213,
+      "text": "villager_hint = \"激进挡刀：必要时跳假身份吸引火力\""
+    },
+    {
+      "file": "players.py",
+      "line": 217,
+      "text": "witch_hint = \"适度用药：有信息就表明身份\""
+    },
+    {
+      "file": "players.py",
+      "line": 413,
+      "text": "extra = f'''请使用 check_player 工具查验一名玩家的身份。"
+    },
+    {
+      "file": "players.py",
+      "line": 416,
+      "text": "llm_prompt = f\"请使用 check_player 工具查验一名玩家的身份。可以查验的目标：{valid_targets_str}。\""
+    },
+    {
+      "file": "players.py",
+      "line": 463,
+      "text": "night_parts = [f\"玩家{pid}(身份未知)\" for pid in night_killed]"
+    },
+    {
+      "file": "players.py",
+      "line": 644,
+      "text": "night_parts = [f\"玩家{pid}(身份未知)\" for pid in night_killed]"
+    },
+    {
+      "file": "players.py",
+      "line": 726,
+      "text": "已经被淘汰的玩家（含身份）：{elim_info_str}"
+    },
+    {
+      "file": "players.py",
+      "line": 734,
+      "text": "- 如果你是女巫：有用药信息就果断表明身份，不要只暗示"
+    },
+    {
+      "file": "players.py",
+      "line": 810,
+      "text": "night_parts = [f\"玩家{pid}(身份未知)\" for pid in night_killed]"
+    },
+    {
+      "file": "players.py",
+      "line": 820,
+      "text": "已被淘汰的玩家（含身份）：{elim_info_str}"
+    },
+    {
+      "file": "players.py",
+      "line": 862,
+      "text": "night_parts = [f\"玩家{pid}(身份未知)\" for pid in night_killed]"
+    }
+  ],
+  "elimination_msg": [
+    {
+      "file": "graph.py",
+      "line": 1461,
+      "text": "elimination_msg = f'玩家{eliminated_player}({_role_cn(el_role)})被投票淘汰'"
+    },
+    {
+      "file": "graph.py",
+      "line": 1462,
+      "text": "glog = [_log_entry(state, 'elimination', elimination_msg, target=eliminated_player, round=round_num)]"
+    },
+    {
+      "file": "graph.py",
+      "line": 1468,
+      "text": "elimination_msg = '本轮投票平票，无人被淘汰'"
+    },
+    {
+      "file": "graph.py",
+      "line": 1498,
+      "text": "vote_result_line = elimination_msg"
+    },
+    {
+      "file": "graph.py",
+      "line": 1571,
+      "text": "'god_announcement': state.get('god_announcement', '') + ' | ' + elimination_msg,"
+    }
+  ],
+  "night_elim": [
+    {
+      "file": "graph.py",
+      "line": 838,
+      "text": "night_elim_str = ''"
+    },
+    {
+      "file": "graph.py",
+      "line": 848,
+      "text": "night_elim_str = ', '.join(parts)"
+    },
+    {
+      "file": "graph.py",
+      "line": 852,
+      "text": "night_elim_str = '无人被淘汰'"
+    },
+    {
+      "file": "graph.py",
+      "line": 856,
+      "text": "night_mem_entry = f'=== Round {round_num} 夜晚 ===\\n{night_summary}\\n淘汰: {night_elim_str}\\n当前存活: {alive}'"
+    }
+  ],
+  "elim_str": [
+    {
+      "file": "graph.py",
+      "line": 838,
+      "text": "night_elim_str = ''"
+    },
+    {
+      "file": "graph.py",
+      "line": 848,
+      "text": "night_elim_str = ', '.join(parts)"
+    },
+    {
+      "file": "graph.py",
+      "line": 852,
+      "text": "night_elim_str = '无人被淘汰'"
+    },
+    {
+      "file": "graph.py",
+      "line": 856,
+      "text": "night_mem_entry = f'=== Round {round_num} 夜晚 ===\\n{night_summary}\\n淘汰: {night_elim_str}\\n当前存活: {alive}'"
+    },
+    {
+      "file": "players.py",
+      "line": 646,
+      "text": "elim_str = \", \".join(elim_parts) if elim_parts else \"无\""
+    }
+  ],
+  "eliminated_info": [
+    {
+      "file": "prompts.py",
+      "line": 94,
+      "text": "- 已被淘汰的玩家（含身份）：{eliminated_info}"
+    },
+    {
+      "file": "prompts.py",
+      "line": 121,
+      "text": "- 已被淘汰的玩家（含身份）：{eliminated_info}"
+    },
+    {
+      "file": "prompts.py",
+      "line": 130,
+      "text": "- ⚠️ 已淘汰的玩家不能再杀！可杀目标只包含存活玩家，看上面的“存活玩家”列表！\"\"\""
+    },
+    {
+      "file": "prompts.py",
+      "line": 143,
+      "text": "- 已被淘汰的玩家（含身份）：{eliminated_info}"
+    },
+    {
+      "file": "prompts.py",
+      "line": 169,
+      "text": "- 已被淘汰的玩家（含身份）：{eliminated_info}"
+    },
+    {
+      "file": "prompts.py",
+      "line": 191,
+      "text": "- 已被淘汰的玩家（含身份）：{eliminated_info}"
+    },
+    {
+      "file": "prompts.py",
+      "line": 214,
+      "text": "- 被淘汰的玩家：{eliminated_players}"
+    },
+    {
+      "file": "prompts.py",
+      "line": 219,
+      "text": "HUMAN_VOTE_PROMPT = \"\"\"请投票淘汰一名玩家。"
+    }
+  ]
+}

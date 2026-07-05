@@ -1,0 +1,261 @@
+21:45:06 | INFO    | [0aef274a] new game
+21:45:07 | INFO    | === NODE: init_game ===
+21:45:07 | INFO    | 角色分配: 玩家1:村民, 玩家2:村民, 玩家3:女巫, 玩家4:预言家, 玩家5:狼人, 玩家6:狼人, 玩家7:村民
+21:45:07 | INFO    | 发言顺序: [6, 2, 7, 5, 1, 3, 4]
+21:45:07 | INFO    | 真人玩家7号身份: 村民
+21:45:07 | INFO    | [0aef274a] NODE COMPLETE: init_game
+21:45:07 | INFO    | [0aef274a] game started, human role=villager
+INFO:     127.0.0.1:52884 - "POST /game/new HTTP/1.1" 200 OK
+21:45:07 | INFO    | === NODE: night_phase (round 1) ===
+21:45:07 | INFO    | Step 1: 狼人讨论与杀人 (human_role=villager)
+21:45:15 | INFO    | 狼人(LLM)选杀: 玩家1
+21:45:15 | INFO    | Step 2: 女巫决策 (has_heal=True, has_poison=True)
+21:45:17 | INFO    | Step 3: 预言家查验
+21:45:18 | INFO    | 预言家(LLM)查验玩家3: 好人
+21:45:18 | INFO    | night_phase 完成 -> day_announcement
+21:45:18 | INFO    | [0aef274a] NODE COMPLETE: night_phase, phase=day_announcement
+21:45:18 | INFO    | === NODE: day_announcement (round 1) ===
+21:45:18 | INFO    | 淘汰: 玩家1(村民)
+21:45:18 | INFO    | 发言顺序: [5, 2, 7, 6, 4, 3]
+21:45:18 | INFO    | [0aef274a] NODE COMPLETE: day_announcement, phase=day_speeches
+21:45:18 | INFO    | === NODE: day_speeches (round 1, already_spoke=set()) ===
+21:45:21 | INFO    | 玩家5(LLM)发言: 我是5号玩家，昨晚1号玩家被淘汰了，看来狼人已经行动了。目前我们还有6个人存活，形势还不算太明朗。我觉得大家需要多聊聊，看看有没有谁发言比较可疑。
+
+作为村民，...
+21:45:25 | INFO    | 玩家2(LLM)发言: 我是2号玩家。首先，昨晚1号玩家被淘汰，很遗憾他是村民，这说明狼人已经成功下刀了。目前我们6个人存活，2个狼人还在场，形势还是比较严峻的。
+
+我注意到5号玩家是...
+21:45:25 | INFO    | [0aef274a] INTERRUPT: type=speech
+INFO:     127.0.0.1:61350 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64167 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64168 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+21:49:29 | INFO    | [0aef274a] ACTION: type=speech input=我也是平民，信息太少不能确定，但是我可以分析出，玩家5或者2有人是狼人，她两都自称是村民，可是村民才三个人，我一个，被淘汰的1号玩家，所以要么5号要么2号，我们
+21:49:29 | INFO    | === NODE: day_speeches (round 1, already_spoke=set()) ===
+21:49:32 | INFO    | 玩家5(LLM)发言: 我是5号玩家，现在场上情况是这样的：昨晚玩家1被淘汰了，目前存活的是我们6个人。按理说第一天大家应该多听少说，但我还是想先聊一下自己的看法。
+
+玩家1被淘汰是个...
+21:49:36 | INFO    | 玩家2(LLM)发言: 我是2号玩家，目前场上存活6个人，1号玩家作为村民已经被淘汰了。说实话，第一轮信息非常有限，大家基本都只能靠猜。
+
+我先说说自己的看法。5号玩家的发言比较中立，...
+21:49:36 | INFO    | 玩家7(真人)发言: 我也是平民，信息太少不能确定，但是我可以分析出，玩家5或者2有人是狼人，她两都自称是村民，可是村民才三个人，我一个，被淘汰的1号玩家，所以要么5号要么2号，我们...
+21:49:39 | INFO    | 玩家6(LLM)发言: 我是6号玩家，现在场上还有6个人，形势确实很微妙。首先，1号玩家作为村民出局，这对好人阵营是个损失，但女巫应该还有解药，预言家也还在，所以局面不算太差。
+
+听了...
+21:49:44 | INFO    | 玩家4(LLM)发言: 我是4号玩家，听到现在，我想先聊聊自己的看法。
+
+首先，昨晚玩家1被淘汰了，女巫大概率用了救药，不然今天出局的应该是另一个目标，这对好人是个好消息。目前存活6个...
+21:49:49 | INFO    | 玩家3(LLM)发言: 我是3号玩家，刚听完前面几位玩家的发言，我来谈谈我的看法。
+
+首先，1号玩家被淘汰了，作为村民出局对好人阵营是个打击。但女巫应该还没用药，毕竟昨晚只淘汰了一个人...
+21:49:49 | INFO    | day_speeches 完成，共 6 条发言 -> day_vote
+21:49:49 | INFO    | [0aef274a] NODE COMPLETE (resume): day_speeches, phase=day_vote
+21:49:49 | INFO    | === NODE: day_vote (round 1, already_voted=set()) ===
+21:49:50 | INFO    | 玩家2(LLM, 村民)投票: 弃权
+21:49:51 | INFO    | 玩家3(LLM, 女巫)投票: 弃权
+21:49:52 | INFO    | 玩家4(LLM, 预言家)投票: 弃权
+21:49:53 | INFO    | 玩家5(LLM, 狼人)投票: 弃权
+21:49:54 | INFO    | 玩家6(LLM, 狼人)投票: 弃权
+21:49:54 | INFO    | [0aef274a] INTERRUPT: type=vote
+21:49:54 | INFO    | [0aef274a] next interrupt: vote
+INFO:     127.0.0.1:64169 - "POST /game/0aef274a/action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56081 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52595 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+21:50:03 | INFO    | [0aef274a] ACTION: type=vote input=弃权
+21:50:03 | INFO    | === NODE: day_vote (round 1, already_voted=set()) ===
+21:50:04 | INFO    | 玩家2(LLM, 村民)投票: 弃权
+21:50:05 | INFO    | 玩家3(LLM, 女巫)投票: 弃权
+21:50:06 | INFO    | 玩家4(LLM, 预言家)投票: 弃权
+21:50:07 | INFO    | 玩家5(LLM, 狼人)投票: 弃权
+21:50:08 | INFO    | 玩家6(LLM, 狼人)投票: 弃权
+21:50:08 | INFO    | 玩家7(真人)弃权
+21:50:08 | INFO    | 投票平票
+21:50:08 | INFO    | day_vote 完成，淘汰=None, game_over=False
+21:50:08 | INFO    | 路由: -> night_phase (下一轮)
+21:50:08 | INFO    | [0aef274a] NODE COMPLETE (resume): day_vote, phase=night
+21:50:08 | INFO    | === NODE: night_phase (round 2) ===
+21:50:08 | INFO    | Step 1: 狼人讨论与杀人 (human_role=villager)
+21:50:14 | INFO    | 狼人(LLM)选杀: 玩家2
+21:50:14 | INFO    | Step 2: 女巫决策 (has_heal=True, has_poison=True)
+21:50:19 | INFO    | 女巫(LLM)救活: 玩家1
+21:50:19 | INFO    | Step 3: 预言家查验
+21:50:21 | INFO    | 预言家(LLM)查验玩家5: 狼人
+21:50:21 | INFO    | night_phase 完成 -> day_announcement
+21:50:21 | INFO    | [0aef274a] NODE COMPLETE (resume): night_phase, phase=day_announcement
+21:50:21 | INFO    | === NODE: day_announcement (round 2) ===
+21:50:21 | INFO    | 淘汰: 玩家2(村民)
+21:50:21 | INFO    | 发言顺序: [5, 6, 3, 4, 7]
+21:50:21 | INFO    | [0aef274a] NODE COMPLETE (resume): day_announcement, phase=day_speeches
+21:50:21 | INFO    | === NODE: day_speeches (round 2, already_spoke=set()) ===
+21:50:24 | INFO    | 玩家5(LLM)发言: 我是5号玩家。昨晚2号被淘汰了，看来狼人第一刀选择了2号。现在场上剩下我们5个人，局势还是比较紧张的。
+
+我觉得可以从两个角度分析：首先，2号如果是被狼人杀的，...
+21:50:28 | INFO    | 玩家6(LLM)发言: 我是6号玩家。昨晚2号被刀了，场上局势确实需要我们好好分析。
+
+我先说说我的想法。现在剩下3、4、5、6、7五位玩家，5号说自己是好人，那狼人就在剩下的4个人里...
+21:50:33 | INFO    | 玩家3(LLM)发言: 我是3号玩家。昨晚2号被淘汰了，我先确认一下，我的解药已经用了，所以今晚救不了人，但我还有毒药。
+
+我先整理一下目前的局势。第一轮出局的是1号，昨晚2号被刀了，...
+21:50:37 | INFO    | 玩家4(LLM)发言: 我是4号玩家。昨晚2号被淘汰了，场上局势确实需要仔细分析。
+
+首先，我注意到3号玩家跳了女巫，说用了解药还有毒药。这个身份相当关键，如果3号真是女巫，那狼人很可...
+21:50:37 | INFO    | [0aef274a] INTERRUPT: type=speech
+21:50:37 | INFO    | [0aef274a] next interrupt: speech
+INFO:     127.0.0.1:52596 - "POST /game/0aef274a/action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65267 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49982 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49983 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+21:52:16 | INFO    | [0aef274a] ACTION: type=speech input=看我说的对吧，之一轮完全可以投玩家5号了，上一局我就说了2号或者5号有一个是狼人，既然2号是平民，那么5号就是狼人！！剩下的好人阵营的人一定要投5号！！！
+21:52:16 | INFO    | === NODE: day_speeches (round 2, already_spoke=set()) ===
+21:52:20 | INFO    | 玩家5(LLM)发言: 我是5号玩家。昨晚2号玩家被淘汰了，现在我们剩下了5位玩家。目前场上情况是：3、4、5、6、7号还活着。
+
+首先，我觉得昨晚狼人刀掉2号，很可能是因为2号在前面...
+21:52:24 | INFO    | 玩家6(LLM)发言: 我是6号玩家。刚才听了5号玩家的发言，我觉得挺有道理的。现在场上还剩下5个人，我简单梳理一下情况。
+
+首先，昨晚2号村民被刀了，这说明狼人可能并没有明确的目标，...
+21:52:29 | INFO    | 玩家3(LLM)发言: 我是3号玩家。昨晚的情况大家都知道了，2号村民被淘汰，狼人应该是想刀神职，但没猜对。现在场上5个人，三民一神一狼的格局，我们好人的容错率不高。
+
+我注意到5号和...
+21:52:34 | INFO    | 玩家4(LLM)发言: 我是4号玩家。刚才听了3、5、6号的发言，我觉得有必要站出来说一些话了。
+
+首先，我确实发言比较少，这我承认，但我觉得前几轮少说话、多观察是合理的策略，毕竟狼人...
+21:52:34 | INFO    | 玩家7(真人)发言: 看我说的对吧，之一轮完全可以投玩家5号了，上一局我就说了2号或者5号有一个是狼人，既然2号是平民，那么5号就是狼人！！剩下的好人阵营的人一定要投5号！！！...
+21:52:34 | INFO    | day_speeches 完成，共 5 条发言 -> day_vote
+21:52:34 | INFO    | [0aef274a] NODE COMPLETE (resume): day_speeches, phase=day_vote
+21:52:34 | INFO    | === NODE: day_vote (round 2, already_voted=set()) ===
+21:52:36 | INFO    | 玩家3(LLM, 女巫)投票: 弃权
+21:52:37 | INFO    | 玩家4(LLM, 预言家)投票: 弃权
+21:52:38 | INFO    | 玩家5(LLM, 狼人)投票: 弃权
+21:52:39 | INFO    | 玩家6(LLM, 狼人)投票: 弃权
+21:52:39 | INFO    | [0aef274a] INTERRUPT: type=vote
+21:52:39 | INFO    | [0aef274a] next interrupt: vote
+INFO:     127.0.0.1:49984 - "POST /game/0aef274a/action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52589 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52596 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+21:52:44 | INFO    | [0aef274a] ACTION: type=vote input=弃权
+21:52:44 | INFO    | === NODE: day_vote (round 2, already_voted=set()) ===
+21:52:45 | INFO    | 玩家3(LLM, 女巫)投票: 弃权
+21:52:46 | INFO    | 玩家4(LLM, 预言家)投票: 弃权
+21:52:47 | INFO    | 玩家5(LLM, 狼人)投票: 弃权
+21:52:48 | INFO    | 玩家6(LLM, 狼人)投票: 弃权
+21:52:48 | INFO    | 玩家7(真人)弃权
+21:52:48 | INFO    | 投票平票
+21:52:48 | INFO    | day_vote 完成，淘汰=None, game_over=False
+21:52:48 | INFO    | 路由: -> night_phase (下一轮)
+21:52:48 | INFO    | [0aef274a] NODE COMPLETE (resume): day_vote, phase=night
+21:52:48 | INFO    | === NODE: night_phase (round 3) ===
+21:52:48 | INFO    | Step 1: 狼人讨论与杀人 (human_role=villager)
+21:52:54 | INFO    | 狼人(LLM)选杀: 玩家3
+21:52:54 | INFO    | Step 2: 女巫决策 (has_heal=False, has_poison=True)
+21:52:58 | INFO    | Step 3: 预言家查验
+21:52:59 | INFO    | 预言家(LLM)查验玩家5: 狼人
+21:52:59 | INFO    | night_phase 完成 -> day_announcement
+21:52:59 | INFO    | [0aef274a] NODE COMPLETE (resume): night_phase, phase=day_announcement
+21:52:59 | INFO    | === NODE: day_announcement (round 3) ===
+21:52:59 | INFO    | 淘汰: 玩家3(女巫)
+21:52:59 | INFO    | 游戏结束: werewolf获胜
+21:52:59 | INFO    | [0aef274a] NODE COMPLETE (resume): day_announcement, phase=game_over
+21:52:59 | INFO    | === NODE: day_speeches (round 3, already_spoke=set()) ===
+21:53:02 | INFO    | 玩家5(LLM)发言: 我是5号玩家。昨晚女巫被刀了，这轮局势对我们好人来说有点不利啊。目前淘汰的是1、2、3号，3号是女巫，那预言家和剩下的村民一定要小心了。
+
+我想先理一下思路。现...
+21:53:06 | INFO    | 玩家6(LLM)发言: 我是6号玩家。听5号说3号是女巫被刀了，那现在局势确实对好人不太友好。存活的是4、5、6、7，我们四个人里还有两狼，这意味着我们每个人都要好好想想。
+
+昨天投票...
+21:53:10 | INFO    | 玩家3(LLM)发言: 我是3号玩家。很遗憾，我昨晚被刀了，但我确实是女巫。作为女巫，我昨晚没用毒药，因为当时局势不明朗，没想到狼人这么快就对我下手了。
+
+现在局势很清晰了：已经出局的...
+21:53:13 | INFO    | 玩家4(LLM)发言: 我是4号玩家。刚才听了大家的发言，5号和6号都在怀疑我，说我“跟风投票”、“话不多”，但我得为自己解释一下：前几轮信息不足，我确实比较谨慎，这很正常吧？现在局势...
+21:53:13 | INFO    | [0aef274a] INTERRUPT: type=speech
+21:53:13 | INFO    | [0aef274a] next interrupt: speech
+INFO:     127.0.0.1:52597 - "POST /game/0aef274a/action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49234 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60674 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60675 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+21:54:45 | INFO    | [0aef274a] ACTION: type=speech input=3，4号你们怎么就是不听我的话！！！你看输了吧！！！
+21:54:45 | INFO    | === NODE: day_speeches (round 3, already_spoke=set()) ===
+21:54:48 | INFO    | 玩家5(LLM)发言: 我是5号玩家。昨晚女巫被淘汰了，说明狼人昨晚的刀法很准。现在场上剩下4、5、6、7四个玩家，局势很关键。
+
+从我的角度来看，女巫已经出局，预言家可能还在场。我们...
+21:54:53 | INFO    | 玩家6(LLM)发言: 我是6号玩家。现在场上只剩我们4、5、6、7四个人了，局势确实很紧张。女巫昨晚出局了，说明狼人刀法很准，这点我同意5号的说法。
+
+不过我想问一下大家，既然女巫已...
+21:54:58 | INFO    | 玩家3(LLM)发言: 我是3号玩家。等一下，大家可能搞混了——我是3号，但昨晚被淘汰的玩家是3号？这不对，我现在还活着，说明昨晚狼人杀死的玩家3号其实是我，但女巫救了我？不对，解药已...
+21:55:04 | INFO    | 玩家4(LLM)发言: 我是4号玩家。刚才听了5号和6号的发言，还有3号的混乱发言，我想先理清一下局面。
+
+首先，3号玩家说自己还活着，但系统明确说昨晚女巫（玩家3）被淘汰了。这说明3...
+21:55:04 | INFO    | 玩家7(真人)发言: 3，4号你们怎么就是不听我的话！！！你看输了吧！！！...
+21:55:04 | INFO    | day_speeches 完成，共 5 条发言 -> day_vote
+21:55:04 | INFO    | [0aef274a] NODE COMPLETE (resume): day_speeches, phase=day_vote
+21:55:04 | INFO    | === NODE: day_vote (round 3, already_voted=set()) ===
+21:55:04 | INFO    | 玩家4(LLM, 预言家)投票: 弃权
+21:55:06 | INFO    | 玩家5(LLM, 狼人)投票: 弃权
+21:55:07 | INFO    | 玩家6(LLM, 狼人)投票: 弃权
+21:55:07 | INFO    | [0aef274a] INTERRUPT: type=vote
+21:55:07 | INFO    | [0aef274a] next interrupt: vote
+INFO:     127.0.0.1:60676 - "POST /game/0aef274a/action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55592 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55594 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+21:55:15 | INFO    | [0aef274a] ACTION: type=vote input=5
+21:55:15 | INFO    | === NODE: day_vote (round 3, already_voted=set()) ===
+21:55:16 | INFO    | 玩家4(LLM, 预言家)投票: 弃权
+21:55:17 | INFO    | 玩家5(LLM, 狼人)投票: 弃权
+21:55:18 | INFO    | 玩家6(LLM, 狼人)投票: 弃权
+21:55:18 | INFO    | 玩家7(真人)投票: 玩家5
+21:55:18 | INFO    | 投票淘汰: 玩家5(狼人), 票数=1
+21:55:18 | INFO    | day_vote 完成，淘汰=5, game_over=False
+21:55:18 | INFO    | 路由: -> night_phase (下一轮)
+21:55:18 | INFO    | [0aef274a] NODE COMPLETE (resume): day_vote, phase=night
+21:55:18 | INFO    | === NODE: night_phase (round 4) ===
+21:55:18 | INFO    | Step 1: 狼人讨论与杀人 (human_role=villager)
+21:55:20 | INFO    | 狼人(LLM)选杀: 玩家4
+21:55:20 | INFO    | Step 3: 预言家查验
+21:55:22 | INFO    | 预言家(LLM)查验玩家6: 狼人
+21:55:22 | INFO    | night_phase 完成 -> day_announcement
+21:55:22 | INFO    | [0aef274a] NODE COMPLETE (resume): night_phase, phase=day_announcement
+21:55:22 | INFO    | === NODE: day_announcement (round 4) ===
+21:55:22 | INFO    | 淘汰: 玩家4(预言家)
+21:55:22 | INFO    | 游戏结束: werewolf获胜
+21:55:22 | INFO    | [0aef274a] NODE COMPLETE (resume): day_announcement, phase=game_over
+21:55:22 | INFO    | === NODE: day_speeches (round 4, already_spoke=set()) ===
+21:55:27 | INFO    | 玩家5(LLM)发言: 我是5号玩家。现在场上只剩下6号和7号两位玩家了，而我已经被淘汰出局了……等等，这个情况有点奇怪，如果我是5号玩家，那此刻我应该还在游戏里才对。
+
+让我重新整理...
+21:55:32 | INFO    | 玩家6(LLM)发言: 我是6号玩家。现在场上只剩下我和7号玩家了，这个局面其实已经非常清晰了。我觉得我们可以直接摊开来说了。
+
+首先，从已知信息来看，1、2、3、5号已经先后被淘汰，...
+21:55:36 | INFO    | 玩家3(LLM)发言: 我是3号玩家。首先，我已经被淘汰了，所以现在是以旁观视角来分析局势。但既然游戏还没结束，我就说说我的想法。
+
+现在存活的是6号和7号两位玩家。从之前的发言来看，...
+21:55:41 | INFO    | 玩家4(LLM)发言: 我是4号玩家。昨晚我被淘汰了，所以现在我是以出局玩家的身份来发言。不过既然游戏还没结束，我得说说我的看法。
+
+首先，作为预言家，我在上一晚查验了6号玩家，结果是...
+21:55:41 | INFO    | [0aef274a] INTERRUPT: type=speech
+21:55:41 | INFO    | [0aef274a] next interrupt: speech
+INFO:     127.0.0.1:55595 - "POST /game/0aef274a/action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52313 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57157 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57158 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK
+21:56:32 | INFO    | [0aef274a] ACTION: type=speech input=来杀我来！！
+21:56:32 | INFO    | === NODE: day_speeches (round 4, already_spoke=set()) ===
+21:56:37 | INFO    | 玩家5(LLM)发言: 我是5号玩家。现在场上只剩6号和7号两位玩家了，也就是说现在是最后的决战时刻。说实话，从目前的局面来看，局势已经非常清晰了。
+
+昨天4号玩家被淘汰，她生前一直跳...
+21:56:43 | INFO    | 玩家6(LLM)发言: 好的，我是6号玩家。
+
+现在场上只剩我和7号两位玩家了，压力确实很大。我仔细听了5号的发言，但我想说，5号现在已经不在了，他的分析最多只能作为参考，不能全信。
+...
+21:56:48 | INFO    | 玩家3(LLM)发言: 我是3号玩家，现在场上只剩下6号和7号了，局势确实到了最关键的时刻。
+
+我先理一下目前的已知信息：昨晚狼人杀了4号，而4号是预言家。那现在存活的人里肯定有至少一...
+21:56:53 | INFO    | 玩家4(LLM)发言: 我是4号玩家，现在场上只剩下我和6号、7号三位玩家了。局势确实到了最关键的时刻，我必须把我掌握的信息说出来。
+
+我其实是预言家。昨晚我查验了5号，结果是【狼人】...
+21:56:53 | INFO    | 玩家7(真人)发言: 来杀我来！！...
+21:56:53 | INFO    | day_speeches 完成，共 5 条发言 -> day_vote
+21:56:53 | INFO    | [0aef274a] NODE COMPLETE (resume): day_speeches, phase=day_vote
+21:56:53 | INFO    | === NODE: day_vote (round 4, already_voted=set()) ===
+21:56:54 | INFO    | 玩家6(LLM, 狼人)投票: 弃权
+21:56:54 | INFO    | [0aef274a] INTERRUPT: type=vote
+21:56:54 | INFO    | [0aef274a] next interrupt: vote
+INFO:     127.0.0.1:57159 - "POST /game/0aef274a/action HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64858 - "GET /game/0aef274a/debug HTTP/1.1" 200 OK

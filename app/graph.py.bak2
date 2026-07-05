@@ -1,0 +1,1875 @@
+# -*- coding: utf-8 -*-
+
+# LangGraph Workflow for Werewolf Agent
+
+# 6 nodes with loop-back for step-by-step speech/vote:
+
+# init_game -> night_phase -> day_announcement -> day_speeches (loop) -> day_vote (loop) -> night_phase/END
+
+
+
+import random, logging, traceback, time
+
+from typing import Literal
+
+from langgraph.graph import StateGraph, END
+
+from langgraph.types import interrupt
+
+from app.models import GameState
+
+from app.players import (
+
+    werewolf_discussion_and_kill, witch_decision, seer_check_action,
+
+    generate_speech, generate_vote,
+
+    _wolf_partner_suggestion, _wolf_strategy_summary, _add_to_memory,
+
+)
+
+
+
+log = logging.getLogger('wolfagent.graph')
+
+
+
+
+
+def _players_alive(state: dict) -> list[int]:
+
+    return [int(pid) for pid, p in state['players'].items() if p['is_alive'] and int(pid) > 0]
+
+
+
+
+
+def _check_win(state: dict):
+
+    alive_wolves = sum(1 for p in state['players'].values()
+
+                       if p['is_alive'] and p['role'] == 'werewolf')
+
+    alive_others = sum(1 for p in state['players'].values()
+
+                       if p['is_alive'] and p['role'] != 'werewolf')
+
+    if alive_wolves == 0:
+
+        return True, 'villager'
+
+    if alive_wolves >= alive_others:
+
+        return True, 'werewolf'
+
+    return False, None
+
+
+
+
+
+def _role_cn(role: str) -> str:
+
+    return {'werewolf': '狼人', 'witch': '女巫', 'seer': '预言家', 'villager': '村民'}.get(role, role)
+
+
+
+
+
+def _log_entry(state: dict, event_type: str, message: str, **extra) -> dict:
+
+    entry = {'type': event_type, 'message': message, 'round': state.get('game_round', 0), **extra}
+
+    return entry
+
+
+
+
+
+def _build_round_summary(state: dict, round_num: int, night_part: str, speech_part: str = '',
+
+                          vote_part: str = '', elim_part: str = '') -> str:
+
+    """Build a comprehensive round summary for player memories."""
+
+    lines = [f'=== Round {round_num} ===']
+
+    if night_part:
+
+        lines.append(f'[夜晚] {night_part}')
+
+    if speech_part:
+
+        lines.append(f'[发言]\n{speech_part}')
+
+    if vote_part:
+
+        lines.append(f'[投票]\n{vote_part}')
+
+    if elim_part:
+
+        lines.append(f'[淘汰] {elim_part}')
+
+    alive = _players_alive(state)
+
+    lines.append(f'当前存活: {alive}')
+
+    return '\n'.join(lines)
+
+
+
+
+
+# ==================== 1. init_game ====================
+
+
+
+def node_init_game(state: GameState) -> dict:
+
+    log.info('=== NODE: init_game ===')
+
+    human_role = state.get('human_role')  # None means random
+
+    roles = ['werewolf', 'werewolf', 'witch', 'seer', 'villager', 'villager', 'villager']
+
+
+
+    if human_role and human_role in roles:
+
+        # Fix player 7 to the chosen role, shuffle the rest to players 1-6
+
+        roles.remove(human_role)
+
+        random.shuffle(roles)
+
+        roles.append(human_role)  # player 7 (index 6) gets the chosen role
+
+        log.info('??7???: %s', _role_cn(human_role))
+
+    else:
+
+        random.shuffle(roles)
+
+
+
+    players = {}
+
+    for i in range(1, 8):
+
+        players[str(i)] = {'player_id': i, 'role': roles[i - 1], 'is_human': (i == 7), 'is_alive': True}
+
+
+
+    speech_order = list(range(1, 8))
+
+    random.shuffle(speech_order)
+
+
+
+    player_memories = {}
+
+    for i in range(1, 8):
+
+        if i == 7:
+
+            continue
+
+        role = roles[i - 1]
+
+        msg = f'你是{i}号玩家。你的身份是：{_role_cn(role)}'
+
+        if role == 'werewolf':
+
+            partner = next(j for j in range(1, 8) if j != i and roles[j - 1] == 'werewolf')
+
+            msg += f'你的狼人队友是玩家{partner}号'
+
+        player_memories[str(i)] = [{'role': 'system', 'content': msg}]
+
+
+
+    role_summary = ', '.join(f'玩家{i}:{_role_cn(roles[i-1])}' for i in range(1, 8))
+
+    glog = [_log_entry({}, 'game_start', '游戏开始！7名玩家已就位。')]
+
+
+
+    log.info('角色分配: %s', role_summary)
+
+    log.info('发言顺序: %s', speech_order)
+
+    log.info('真人玩家7号身份: %s', _role_cn(roles[6]))
+
+
+
+    return {
+
+        'players': players,
+
+        'alive_player_ids': list(range(1, 8)),
+
+        'human_player_id': 7,
+
+        'game_round': 0,
+
+        '_night_step': 0,
+
+        '_night_lines': [],
+
+        '_werewolf_secret_chat': [],
+
+        'phase': 'night',
+
+        'witch_has_heal': True,
+
+        'witch_has_poison': True,
+
+        'werewolf_kill_target': None,
+
+        'witch_heal_target': None,
+
+        'witch_poison_target': None,
+
+        'seer_check_target': None,
+
+        'seer_check_result': None,
+
+        'speech_order': speech_order,
+
+        'speech_cursor': 0,
+
+        'speeches': [],
+
+        'vote_order': [],
+
+        'vote_cursor': 0,
+
+        'votes': {},
+
+        'werewolf_chat': [],
+
+        'eliminated_tonight': [],
+
+        'eliminated_all': [],
+
+        'eliminated_roles': {},
+
+        '_night_killed_ids': [],
+
+        'god_announcement': '',
+
+        'night_summary': '',
+
+        'game_over': False,
+
+        'winner': None,
+
+        'interrupt_type': 'none',
+
+        'interrupt_prompt': '',
+
+        'human_input': '',
+
+        'player_memories': player_memories,
+
+        'game_log': glog,
+
+
+
+    }
+
+
+
+
+
+# ==================== 2. night_phase ====================
+
+
+
+
+
+def _night_common(state):
+    """Shared setup for all night phase nodes."""
+    if state.get('game_over', False) or state.get('phase') == 'game_over':
+        return None
+    round_num = state.get('game_round', 0)  # werewolf node does the +1
+    players = state['players']
+    human_id = state.get('human_player_id', 7)
+    human_player = players[str(human_id)]
+    human_role = human_player['role'] if human_player['is_alive'] else None
+    alive = _players_alive(state)
+    night_lines = list(state.get('_night_lines', []))
+    return {
+        'round_num': round_num, 'players': players,
+        'human_id': human_id, 'human_role': human_role,
+        'alive': alive, 'night_lines': night_lines,
+    }
+
+def node_night_werewolf(state: GameState) -> dict:
+    """Step 1: Werewolf kill decision (LLM or human)."""
+    ctx = _night_common(state)
+    if ctx is None:
+        return {'phase': 'game_over', 'game_over': True,
+                'game_round': state.get('game_round', 0),
+                'speeches_history': state.get('speeches_history', {}),
+                'votes_history': state.get('votes_history', {})}
+
+    round_num = state.get('game_round', 0) + 1  # increment once at start of night
+    players = ctx['players']
+    human_id = ctx['human_id']
+    human_role = ctx['human_role']
+    alive = ctx['alive']
+    night_lines = ctx['night_lines']
+
+    glog = [_log_entry(state, 'round_start', f'--- Round {round_num} 夜晚开始---', round=round_num)]
+
+    result = {
+        'game_round': round_num, 'votes': {}, 'speeches': [],
+        'speech_cursor': 0, 'vote_cursor': 0,
+        '_werewolf_kill_history': state.get('_werewolf_kill_history', {}),
+        '_witch_action_history': state.get('_witch_action_history', {}),
+        '_seer_check_history': state.get('_seer_check_history', {}),
+        'eliminated_tonight': [], 'game_log': glog,
+        'werewolf_kill_target': None,
+        'witch_has_heal': state.get('witch_has_heal', True),
+        'witch_has_poison': state.get('witch_has_poison', True),
+        'witch_heal_target': None, 'witch_poison_target': None,
+        'seer_check_target': None, 'seer_check_result': None,
+        'god_announcement': '', '_night_lines': night_lines,
+        'speeches_history': state.get('speeches_history', {}),
+        'votes_history': state.get('votes_history', {}),
+        'night_step': 0,
+        'phase': 'night',
+    }
+
+    werewolf_ids = [int(pid) for pid, p in players.items()
+                    if p['role'] == 'werewolf' and p['is_alive']]
+
+    if not werewolf_ids:
+        result['_night_lines'] = night_lines
+        log.info('night_werewolf: 无存活狼人，跳过')
+        return result
+
+    valid_targets = list(alive)  # allow self-kill and teammate kill
+    log.info('=== NODE: night_werewolf (round %d) ===', round_num)
+    log.info('Step 1: 狼人讨论与杀人(werewolves=%s, human_role=%s)', werewolf_ids, human_role)
+
+    if human_role == 'werewolf' and human_id in werewolf_ids:
+        other_wolf = [w for w in werewolf_ids if w != human_id]
+        secret_chat = list(state.get('_werewolf_secret_chat', []))
+        log.info('DEBUG secret_chat on entry: len=%d, content=%s', len(secret_chat), 
+                 [m.get('content','')[:40] for m in secret_chat])
+
+        if not secret_chat:
+            for pw in other_wolf:
+                try:
+                    advice = _wolf_partner_suggestion(pw, state)
+                    if advice:
+                        secret_chat.append({'from': pw, 'content': advice, 'round': round_num})
+                except Exception:
+                    log.warning('狼人队友%d策略生成失败', pw)
+            state['_night_lines'] = night_lines
+            state['_werewolf_secret_chat'] = secret_chat
+
+            # Dedicated interrupt to checkpoint initial chat before loop
+            interrupt({
+                'type': 'werewolf_discuss', 'human_role': 'werewolf',
+                'partner': other_wolf, 'valid_targets': valid_targets,
+                'secret_chat': secret_chat,
+                'prompt': f'狼人秘密讨论。队友:{other_wolf}。可杀:{valid_targets}。输入消息讨论，或直接输入数字杀人',
+                'game_round': round_num,
+            })
+            # On resume, fall through to while loop with chat in state
+
+        state['_night_lines'] = night_lines
+        state['_werewolf_secret_chat'] = secret_chat
+
+        while True:
+            human_choice = interrupt({
+                'type': 'werewolf_discuss', 'human_role': 'werewolf',
+                'partner': other_wolf, 'valid_targets': valid_targets,
+                'secret_chat': secret_chat,
+                'prompt': f'狼人秘密讨论。队友:{other_wolf}。可杀:{valid_targets}。输入消息讨论，或直接输入数字杀人',
+                'game_round': round_num,
+            })
+
+            hc = human_choice.strip() if isinstance(human_choice, str) else ''
+
+            if hc.startswith('chat:'):
+                msg = hc[5:].strip()
+                if msg:
+                    # Guard against LangGraph replay: skip if this message was already processed
+                    already_sent = any(
+                        m.get('from') == human_id and m.get('content') == msg
+                        for m in secret_chat[-6:]
+                    )
+                    if not already_sent:
+                        secret_chat.append({'from': human_id, 'content': msg, 'round': round_num})
+                        for pw in other_wolf:
+                            try:
+                                reply = _wolf_partner_suggestion(pw, state, secret_chat)
+                                if reply:
+                                    secret_chat.append({'from': pw, 'content': reply, 'round': round_num})
+                            except Exception:
+                                log.warning('狼人队友%d回复失败', pw)
+                    state['_night_lines'] = night_lines
+                    state['_werewolf_secret_chat'] = secret_chat
+                    continue
+                else:
+                    secret_chat.append({'from': 'system', 'content': '无法识别，请输入数字选目标或用聊天发送消息', 'round': round_num})
+                    state['_night_lines'] = night_lines
+                    state['_werewolf_secret_chat'] = secret_chat
+                    continue
+
+            try:
+                kt = int(hc)
+                if kt in valid_targets and kt > 0:
+                    result['werewolf_kill_target'] = kt
+                    secret_chat.append({'from': human_id, 'content': f'[决定击杀: 玩家{kt}]', 'round': round_num})
+                    # Record kill history
+                    wh = dict(state.get('_werewolf_kill_history', {}))
+                    wh[round_num] = kt
+                    result['_werewolf_kill_history'] = wh
+                    night_lines.append(f'真人狼人击杀: 玩家{kt}')
+                    result.setdefault('game_log', []).append(
+                        _log_entry(state, 'wolf_kill', f'真人狼人击杀: 玩家{kt}', target=kt, round=round_num))
+                    log.info('真人狼人击杀: 玩家%d', kt)
+                    # Inject strategy summary into werewolf teammate memories
+                    for pw in other_wolf:
+                        try:
+                            mem_summary = _wolf_strategy_summary(pw, state, kt, round_num, secret_chat)
+                            if mem_summary:
+                                _add_to_memory(state, pw, [{'role': 'system', 'content': mem_summary}])
+                        except Exception:
+                            pass
+                    break
+                else:
+                    secret_chat.append({'from': 'system', 'content': f'无效目标{hc}，请输入有效的玩家编号: {valid_targets}', 'round': round_num})
+                    state['_night_lines'] = night_lines
+                    state['_werewolf_secret_chat'] = secret_chat
+                    continue
+            except ValueError:
+                secret_chat.append({'from': 'system', 'content': '无法识别，请输入数字选目标或用聊天发送消息', 'round': round_num})
+                state['_night_lines'] = night_lines
+                state['_werewolf_secret_chat'] = secret_chat
+                continue
+
+        result['_night_lines'] = night_lines
+    else:
+        try:
+            secret_history = state.get('_werewolf_secret_chat', None)
+            wolf_result = werewolf_discussion_and_kill(state, secret_chat_history=secret_history if secret_history else None)
+            result.update(wolf_result)
+            kt = wolf_result.get('werewolf_kill_target')
+            if kt is not None and kt > 0:
+                night_lines.append(f'狼人击杀: 玩家{kt}')
+                wh = dict(state.get('_werewolf_kill_history', {}))
+                wh[round_num] = kt
+                result['_werewolf_kill_history'] = wh
+                # Inject strategy summary into LLM werewolf memories
+                for wid in werewolf_ids:
+                    try:
+                        mem_summary = _wolf_strategy_summary(wid, state, kt, round_num, None)
+                        if mem_summary:
+                            _add_to_memory(state, wid, [{'role': 'system', 'content': mem_summary}])
+                    except Exception:
+                        pass
+                result.setdefault('game_log', []).append(
+                    _log_entry(state, 'wolf_kill', f'狼人(LLM)选择击杀玩家{kt}', target=kt, round=round_num))
+                log.info('狼人(LLM)击杀: 玩家%d', kt)
+        except Exception:
+            log.error('狼人讨论失败:\n%s', traceback.format_exc())
+            raise
+
+    result['_night_lines'] = night_lines
+    result.setdefault('game_log', [])
+    return result
+
+def node_night_witch(state: GameState) -> dict:
+    """Step 2: Witch decision (LLM or human)."""
+    ctx = _night_common(state)
+    if ctx is None:
+        return {'phase': 'game_over', 'game_over': True, 'game_round': state.get('game_round', 0)}
+
+    round_num = ctx['round_num']
+    players = ctx['players']
+    human_id = ctx['human_id']
+    human_role = ctx['human_role']
+    alive = ctx['alive']
+    night_lines = list(state.get('_night_lines', []))
+
+    kill_target = state.get('werewolf_kill_target')
+    has_heal = state.get('witch_has_heal', True)
+    has_poison = state.get('witch_has_poison', True)
+
+    result = {
+        'witch_has_heal': has_heal, 'witch_has_poison': has_poison,
+        'witch_heal_target': None, 'witch_poison_target': None,
+        '_night_lines': night_lines, 'phase': 'night',
+        'night_step': 1,
+        'game_round': round_num,
+    }
+
+    witch_id = None
+    for pid, p in players.items():
+        if p['role'] == 'witch' and p['is_alive']:
+            witch_id = int(pid)
+            break
+
+    log.info('=== NODE: night_witch (round %d) ===', round_num)
+
+    if witch_id is None or (not has_heal and not has_poison):
+        log.info('night_witch: 无女巫或无药，跳过')
+        return result
+
+    log.info('Step 2: 女巫决策 (witch=%d, has_heal=%s, has_poison=%s)', witch_id, has_heal, has_poison)
+
+    if human_role == 'witch':
+        valid_poison = [pid for pid in alive if pid != human_id]
+        state['_night_lines'] = night_lines
+
+        human_choice = interrupt({
+            'type': 'witch_decision', 'human_role': 'witch',
+            'killed_target': kill_target, 'has_heal': has_heal, 'has_poison': has_poison,
+            'valid_poison_targets': valid_poison,
+            'prompt': f'女巫决策。被狼人击杀: 玩家{kill_target}。解药:{"可用" if has_heal else "无"}。毒药:{"可用" if has_poison else "无"}。回复 save/poison N/skip',
+            'game_round': round_num,
+        })
+
+        hc = human_choice.strip().lower() if isinstance(human_choice, str) else ''
+        if hc.startswith('save') and has_heal:
+            result['witch_heal_target'] = kill_target
+            result['witch_has_heal'] = False
+            night_lines.append(f'女巫救活: 玩家{kill_target}')
+            result.setdefault('game_log', []).append(
+                _log_entry(state, 'witch_save', f'女巫(真人)救活玩家{kill_target}', round=round_num))
+            log.info('女巫(真人)救活: 玩家%d', kill_target)
+            # Record action history for prompt injection
+            wh = dict(state.get('_witch_action_history', {}))
+            wh[round_num] = wh.get(round_num, {})
+            wh[round_num]['heal'] = kill_target
+            result['_witch_action_history'] = wh
+        elif hc.startswith('poison') and has_poison:
+            parts = hc.split()
+            if len(parts) > 1:
+                try:
+                    pt = int(parts[1])
+                    if pt in valid_poison and pt > 0:
+                        result['witch_poison_target'] = pt
+                        result['witch_has_poison'] = False
+                        night_lines.append(f'女巫毒杀: 玩家{pt}')
+                        result.setdefault('game_log', []).append(
+                            _log_entry(state, 'witch_poison', f'女巫(真人)毒杀玩家{pt}', target=pt, round=round_num))
+                        log.info('女巫(真人)毒杀: 玩家%d', pt)
+                    # Record action history for prompt injection
+                    wh = dict(state.get('_witch_action_history', {}))
+                    wh[round_num] = wh.get(round_num, {})
+                    wh[round_num]['poison'] = pt
+                    result['_witch_action_history'] = wh
+                except ValueError:
+                    pass
+    else:
+        try:
+            witch_result = witch_decision(state)
+            for k in ('witch_heal_target', 'witch_poison_target', 'witch_has_heal', 'witch_has_poison'):
+                if k in witch_result:
+                    result[k] = witch_result[k]
+            ht = witch_result.get('witch_heal_target')
+            pt = witch_result.get('witch_poison_target')
+            if ht is not None and ht > 0:
+                night_lines.append(f'女巫救活: 玩家{ht}')
+                result.setdefault('game_log', []).append(
+                    _log_entry(state, 'witch_save', f'女巫(LLM)救活玩家{ht}', round=round_num))
+                log.info('女巫(LLM)救活: 玩家%d', ht)
+                # Record action history for prompt injection
+                wh = dict(state.get('_witch_action_history', {}))
+                wh[round_num] = wh.get(round_num, {})
+                wh[round_num]['heal'] = ht
+                result['_witch_action_history'] = wh
+            if pt is not None and pt > 0:
+                night_lines.append(f'女巫毒杀: 玩家{pt}')
+                result.setdefault('game_log', []).append(
+                    _log_entry(state, 'witch_poison', f'女巫(LLM)毒杀玩家{pt}', target=pt, round=round_num))
+                log.info('女巫(LLM)毒杀: 玩家%d', pt)
+                # Record action history for prompt injection
+                wh = dict(state.get('_witch_action_history', {}))
+                wh[round_num] = wh.get(round_num, {})
+                wh[round_num]['poison'] = pt
+                result['_witch_action_history'] = wh
+        except Exception:
+            log.error('女巫决策失败:\n%s', traceback.format_exc())
+            raise
+
+    result['_night_lines'] = night_lines
+    if 'game_log' not in result:
+        result['game_log'] = []
+    return result
+
+def node_night_seer(state: GameState) -> dict:
+    """Step 3: Seer check (LLM or human). After completion, builds night_summary and transitions to day."""
+    ctx = _night_common(state)
+    if ctx is None:
+        return {'phase': 'game_over', 'game_over': True, 'game_round': state.get('game_round', 0)}
+
+    round_num = ctx['round_num']
+    players = ctx['players']
+    human_id = ctx['human_id']
+    human_role = ctx['human_role']
+    alive = ctx['alive']
+    night_lines = list(state.get('_night_lines', []))
+
+    result = {
+        'seer_check_target': None, 'seer_check_result': None,
+        '_night_lines': night_lines, 'phase': 'night',
+        'night_step': 2,
+        'game_round': round_num,
+    }
+
+    seer_id = None
+    for pid, p in players.items():
+        if p['role'] == 'seer' and p['is_alive']:
+            seer_id = int(pid)
+            break
+
+    log.info('=== NODE: night_seer (round %d) ===', round_num)
+
+    if seer_id is None:
+        log.info('night_seer: 无存活预言家，跳过')
+        night_summary = '; '.join(night_lines) if night_lines else '平安夜，无事发生'
+        result['night_summary'] = night_summary
+        result['phase'] = 'day_announcement'
+        result['_night_lines'] = []
+        return result
+
+    # Check if seer already completed (after seer_result interrupt)
+    already_checked = state.get('_seer_checked', False)
+
+    log.info('Step 3: 预言家查验')
+
+    if human_role == 'seer':
+        if not already_checked:
+            valid_targets = [pid for pid in alive if pid != human_id]
+            state['_night_lines'] = night_lines
+
+            human_choice = interrupt({
+                'type': 'seer_check', 'human_role': 'seer',
+                'valid_targets': valid_targets,
+                'prompt': f'预言家查验。可选: {valid_targets}。回复玩家编号',
+                'game_round': round_num,
+            })
+
+            try:
+                ct = int(human_choice)
+                if ct in valid_targets:
+                    result['seer_check_target'] = ct
+                    r = '狼人' if players[str(ct)]['role'] == 'werewolf' else '好人'
+                    result['seer_check_result'] = r
+                    result.setdefault('game_log', []).append(
+                        _log_entry(state, 'seer_check', f'预言家(真人)查验玩家{ct}: {r}', round=round_num))
+                    log.info('预言家(真人)查验玩家%d: %s', ct, r)
+                    # Record check history for prompt injection
+                    sh = dict(state.get('_seer_check_history', {}))
+                    sh[round_num] = {'target': ct, 'result': r}
+                    result['_seer_check_history'] = sh
+
+                    # Mark checked so next call knows to skip
+                    state['_seer_checked'] = True
+                    state['_night_lines'] = night_lines
+
+                    interrupt({
+                        'type': 'seer_result',
+                        'checked_player': ct,
+                        'check_result': r,
+                        'prompt': f'查验结果：玩家{ct}是{r}',
+                        'game_round': round_num,
+                    })
+                    return {'game_round': round_num}
+            except (ValueError, TypeError):
+                pass
+
+        # Either already checked or after seer_result confirmed
+        # Restore result from state
+        ct = state.get('seer_check_target') if already_checked else result.get('seer_check_target')
+        cr = state.get('seer_check_result') if already_checked else result.get('seer_check_result')
+        if ct:
+            result['seer_check_target'] = ct
+        if cr:
+            result['seer_check_result'] = cr
+    else:
+        try:
+            seer_result = seer_check_action(state)
+            for k in ('seer_check_target', 'seer_check_result'):
+                if k in seer_result:
+                    result[k] = seer_result[k]
+            ct = seer_result.get('seer_check_target')
+            cr = seer_result.get('seer_check_result')
+            if ct is not None and ct > 0:
+                result.setdefault('game_log', []).append(
+                    _log_entry(state, 'seer_check', f'预言家(LLM)查验玩家{ct}: {cr}', round=round_num))
+                log.info('预言家(LLM)查验玩家%d: %s', ct, cr)
+                # Record check history for prompt injection
+                sh = dict(state.get('_seer_check_history', {}))
+                sh[round_num] = {'target': ct, 'result': cr}
+                result['_seer_check_history'] = sh
+        except Exception:
+            log.error('预言家查验失败\n%s', traceback.format_exc())
+            raise
+
+    night_summary = '; '.join(night_lines) if night_lines else '平安夜，无事发生'
+    result['night_summary'] = night_summary
+    result['phase'] = 'day_announcement'
+    result['_night_lines'] = []
+    result['_seer_checked'] = False  # Reset for next round
+
+    log.info('night_seer 完成 -> day_announcement, night_summary=%s', night_summary)
+    return result
+
+
+
+
+# ==================== 3. day_announcement ====================
+
+
+
+def node_day_announcement(state: GameState) -> dict:
+
+    # If game is already over, stop immediately
+
+    if state.get('game_over', False) or state.get('phase') == 'game_over':
+
+        log.warning('day_announcement: game already over, stopping')
+
+        return {'phase': 'game_over', 'game_over': True, 'game_round': state.get('game_round', 1)}
+
+    round_num = state.get('game_round', 1)
+
+    log.info('=== NODE: day_announcement (round %d) ===', round_num)
+
+    players = state['players']
+
+    glog = [_log_entry(state, 'day_start', f'--- Round {round_num} 白天开始---', round=round_num)]
+
+
+
+    kill_target = state.get('werewolf_kill_target')
+
+    heal_target = state.get('witch_heal_target')
+
+    poison_target = state.get('witch_poison_target')
+
+
+
+    killed_tonight = []
+
+    if kill_target is not None and kill_target > 0 and str(kill_target) in players:
+
+        if heal_target != kill_target:
+
+            killed_tonight.append(kill_target)
+
+    if poison_target is not None and poison_target > 0 and str(poison_target) in players:
+
+        if poison_target not in killed_tonight:
+
+            killed_tonight.append(poison_target)
+
+
+
+    announcement_parts = []
+
+    eliminated_all = list(state.get('eliminated_all', []))
+
+    eliminated_roles = dict(state.get('eliminated_roles', {}))
+
+    night_killed_ids = list(state.get('_night_killed_ids', []))
+
+
+
+    for pid in killed_tonight:
+
+        pid_str = str(pid)
+
+        if pid_str in players:
+
+            players[pid_str]['is_alive'] = False
+
+            eliminated_all.append(pid)
+
+            night_killed_ids.append(pid)
+
+            role = players[pid_str]['role']
+
+            r = _role_cn(role)
+
+            announcement_parts.append(f'玩家{pid}昨晚被淘汰')
+
+            glog.append(_log_entry(state, 'death_night', f'玩家{pid}夜间被淘汰', round=round_num, target=pid))
+
+            log.info('淘汰: 玩家%d(%s)', pid, r)
+            log.warning('TRACE night_killed_ids now: %s, eliminated_roles: %s', night_killed_ids, eliminated_roles)
+
+
+
+    if not killed_tonight:
+
+        announcement_parts.append('昨晚是平安夜，没有玩家死亡')
+
+        glog.append(_log_entry(state, 'peace_night', '平安夜，无人死亡', round=round_num))
+
+        log.info('平安夜')
+
+
+
+    god_announcement = ' '.join(announcement_parts)
+
+    alive = _players_alive(state)
+
+
+
+    # Build night summary + write to all alive player memories
+
+    night_summary = state.get('night_summary', '')
+
+    player_memories = state.get('player_memories', {})
+
+    night_elim_str = ''
+
+    if killed_tonight:
+
+        parts = []
+
+        for pid in killed_tonight:
+
+            parts.append(f'玩家{pid}被淘汰')
+
+        night_elim_str = ', '.join(parts)
+
+    else:
+
+        night_elim_str = '无人被淘汰'
+
+
+
+    night_mem_entry = f'=== Round {round_num} 夜晚 ===\n{night_summary}\n淘汰: {night_elim_str}\n当前存活: {alive}'
+
+    for pid in alive:
+
+        pid_str = str(pid)
+
+        if pid_str not in player_memories:
+
+            player_memories[pid_str] = []
+
+        player_memories[pid_str].append({'role': 'system', 'content': night_mem_entry})
+
+
+
+
+    is_over, winner = _check_win(state)
+
+    if is_over:
+
+        glog.append(_log_entry(state, 'game_over', f'游戏结束！{winner}阵营获胜', round=round_num))
+
+        log.info('游戏结束: %s阵营获胜', winner)
+
+        # Merge all dead players' roles into eliminated_roles for final display
+        for pid_str, pdata in players.items():
+            if not pdata.get('is_alive', True):
+                eliminated_roles[int(pid_str)] = pdata['role']
+
+        updated_mem = {}
+
+        for k, v in player_memories.items():
+
+            updated_mem[k] = list(v)
+
+        return {
+
+            'god_announcement': god_announcement, 'eliminated_tonight': killed_tonight,
+
+            'eliminated_all': eliminated_all, 'eliminated_roles': eliminated_roles,
+
+            '_night_killed_ids': night_killed_ids,
+
+            'alive_player_ids': alive,
+
+            'players': players, 'game_over': True, 'winner': winner,
+
+            'phase': 'game_over', 'game_log': glog,
+            'game_round': round_num,
+
+            'player_memories': updated_mem,
+
+            'werewolf_kill_target': None, '_night_step': 0,
+            'speeches_history': state.get('speeches_history', {}),
+            'votes_history': state.get('votes_history', {}),
+
+        }
+
+
+
+    speech_order = list(alive)
+
+    random.shuffle(speech_order)
+
+    log.info('发言顺序: %s', speech_order)
+
+
+
+    updated_mem = {}
+
+    for k, v in player_memories.items():
+
+        updated_mem[k] = list(v)
+
+
+
+
+    
+
+    return {
+
+        'god_announcement': god_announcement, 'eliminated_tonight': killed_tonight,
+
+        'eliminated_all': eliminated_all, 'eliminated_roles': eliminated_roles,
+
+        '_night_killed_ids': night_killed_ids,
+
+        'alive_player_ids': alive,
+
+        'players': players, 'speech_order': speech_order,
+
+        'speech_cursor': 0, 'speeches': [], 'votes': {},
+
+        'phase': 'day_speeches', 'game_log': glog,
+
+        'werewolf_kill_target': None, '_night_step': 0,
+        'game_round': round_num,
+        'speeches_history': state.get('speeches_history', {}),
+        'votes_history': state.get('votes_history', {}),
+
+        'player_memories': updated_mem,
+
+    }
+    log.warning('TRACE day_announcement RETURN(non-gameover) night_killed_ids=%s eliminated_roles=%s', night_killed_ids, eliminated_roles)
+
+
+
+
+
+# ==================== 4. day_speeches (single-step) ====================
+
+
+
+def node_day_speeches(state: GameState) -> dict:
+
+    round_num = state.get('game_round', 1)
+
+    speech_cursor = state.get('speech_cursor', 0)
+
+    speech_order = state.get('speech_order', [])
+
+    speeches_all = list(state.get('speeches', []))
+
+    players = state['players']
+
+    human_id = state.get('human_player_id', 7)
+
+    alive = _players_alive(state)
+
+    god_announcement = state.get('god_announcement', '')
+
+    eliminated_all = state.get('eliminated_all', [])
+
+    eliminated_roles = state.get('eliminated_roles', {})
+
+
+
+    log.info('=== NODE: day_speeches (round %d, cursor=%d/%d) ===',
+
+             round_num, speech_cursor, len(speech_order))
+
+
+
+    # If game is already over, stop immediately and propagate game_over flag
+
+    if state.get('game_over', False) or state.get('phase') == 'game_over':
+
+        log.warning('day_speeches: game already over, stopping')
+
+        return {'phase': 'game_over', 'game_over': True, 'game_round': state.get('game_round', 0)}
+
+
+
+    # Find next alive player to speak
+
+    while speech_cursor < len(speech_order):
+
+        pid = speech_order[speech_cursor]
+
+
+
+        # Skip dead players
+
+        if not players[str(pid)].get('is_alive', False):
+
+            log.info('玩家%d 已死亡，跳过发言', pid)
+
+            speech_cursor += 1
+
+            continue
+
+
+
+        # This is the player who speaks now
+
+        if pid == human_id:
+
+            role = players[str(human_id)]['role']
+
+            # Build previous speeches summary for the human
+
+            prev_lines = []
+
+            for s in speeches_all:
+
+                prev_lines.append(f'玩家{s["player_id"]}: {s["content"][:300]}')
+
+            prev_summary = '\n---\n'.join(prev_lines) if prev_lines else '（第一位发言者）'
+
+
+
+            # Build eliminated info
+
+            elim_info = ', '.join(
+
+                f'玩家{eid}({_role_cn(eliminated_roles.get(eid, "?"))})'
+
+                for eid in eliminated_all
+
+            ) if eliminated_all else '无'
+
+
+
+            human_speech = interrupt({
+
+                'type': 'speech', 'human_role': _role_cn(role),
+
+                'player_id': human_id, 'previous_speeches': prev_summary,
+
+                'god_announcement': god_announcement, 'alive_players': alive,
+
+                'eliminated_players': eliminated_all,
+
+                'eliminated_info': elim_info,
+
+                'round_num': round_num,
+
+                'prompt': f'Round {round_num} 发言。身份:{_role_cn(role)}。昨晚:{god_announcement}\n之前发言:\n{prev_summary}\n已淘汰:{elim_info}\n请发表观点',
+
+            })
+
+            speeches_all.append({'player_id': human_id, 'content': human_speech})
+
+            glog = [_log_entry(state, 'speech', human_speech, player_id=human_id, round=round_num)]
+
+            speech_cursor += 1
+
+            log.info('玩家%d(真人)发言: %s...', human_id, human_speech[:80])
+
+            return {
+
+                'speeches': speeches_all, 'speech_cursor': speech_cursor,
+
+                'phase': 'day_speeches', 'game_log': glog,
+                'game_round': round_num,
+
+            }
+
+        else:
+
+            # LLM player speaks
+
+            try:
+
+                t0 = time.time()
+
+                speech = generate_speech(pid, state)
+
+                elapsed = time.time() - t0
+
+                speeches_all.append({'player_id': pid, 'content': speech})
+
+                glog = [_log_entry(state, 'speech', speech, player_id=pid, round=round_num)]
+
+                speech_cursor += 1
+
+                log.info('玩家%d(LLM)发言(%.1fs): %s...', pid, elapsed, speech[:80])
+
+                return {
+
+                    'speeches': speeches_all, 'speech_cursor': speech_cursor,
+
+                    'phase': 'day_speeches', 'game_log': glog,
+                    'game_round': round_num,
+
+                }
+
+            except Exception:
+
+                log.error('玩家%d发言生成失败:\n%s', pid, traceback.format_exc())
+
+                speeches_all.append({'player_id': pid, 'content': '（沉默）'})
+
+                glog = [_log_entry(state, 'speech_error', f'玩家{pid}发言失败', round=round_num)]
+
+                speech_cursor += 1
+
+                return {
+
+                    'speeches': speeches_all, 'speech_cursor': speech_cursor,
+
+                    'phase': 'day_speeches', 'game_log': glog,
+                    'game_round': round_num,
+
+                }
+
+
+
+    # All players have spoken
+
+    # Build speech summary for round memory
+
+    speech_lines = []
+
+    for s in speeches_all:
+
+        speech_lines.append(f'玩家{s["player_id"]}: {s["content"][:200]}')
+
+    speech_summary = '\n'.join(speech_lines) if speech_lines else '（无人发言）'
+
+
+
+    # Write speech summary to all alive player memories
+
+    player_memories = state.get('player_memories', {})
+
+    speech_mem_entry = f'=== Round {round_num} 发言 ===\n{speech_summary}'
+
+    for pid in alive:
+
+        pid_str = str(pid)
+
+        if pid_str not in player_memories:
+
+            player_memories[pid_str] = []
+
+        player_memories[pid_str].append({'role': 'system', 'content': speech_mem_entry})
+
+
+
+    # Setup vote phase
+
+    vote_order = list(alive)
+
+    random.shuffle(vote_order)
+
+    log.info('day_speeches 完成，共 %d 条发言 -> day_vote, 投票顺序: %s', len(speeches_all), vote_order)
+
+
+
+    updated_mem = {}
+
+    for k, v in player_memories.items():
+
+        updated_mem[k] = list(v)
+
+
+
+    glog = [_log_entry(state, 'speech_end', f'发言阶段结束，共{len(speeches_all)}条发言', round=round_num)]
+
+    return {
+
+        'speeches': speeches_all, 'speech_cursor': 0,
+
+        'vote_order': vote_order, 'vote_cursor': 0,
+
+        'phase': 'day_vote', 'game_log': glog,
+        'game_round': round_num,
+
+        'player_memories': updated_mem,
+
+    }
+    log.warning('TRACE day_announcement RETURN(non-gameover) night_killed_ids=%s eliminated_roles=%s', night_killed_ids, eliminated_roles)
+
+
+
+
+
+# ==================== 5. day_vote (single-step) ====================
+
+
+
+def node_day_vote(state: GameState) -> dict:
+
+    round_num = state.get('game_round', 1)
+
+    vote_cursor = state.get('vote_cursor', 0)
+
+    vote_order = state.get('vote_order', [])
+
+    votes_all = dict(state.get('votes', {}))
+
+    players = state['players']
+
+    human_id = state.get('human_player_id', 7)
+
+    alive = _players_alive(state)
+
+    speeches_all = state.get('speeches', [])
+
+    eliminated_roles = state.get('eliminated_roles', {})
+
+
+
+    log.info('=== NODE: day_vote (round %d, cursor=%d/%d) ===',
+
+             round_num, vote_cursor, len(vote_order))
+
+
+
+    # If game is already over, stop immediately and propagate game_over flag
+
+    if state.get('game_over', False) or state.get('phase') == 'game_over':
+
+        log.warning('day_vote: game already over, stopping')
+
+        return {'phase': 'game_over', 'game_over': True, 'game_round': state.get('game_round', 0)}
+
+
+
+    # Find next alive voter
+
+    while vote_cursor < len(vote_order):
+
+        pid = vote_order[vote_cursor]
+
+
+
+        # Skip dead players
+
+        if not players[str(pid)].get('is_alive', False):
+
+            log.info('玩家%d 已死亡，跳过投票', pid)
+
+            vote_cursor += 1
+
+            continue
+
+
+
+        if pid == human_id:
+
+            valid_targets = [p for p in alive if p != human_id]
+
+            speeches_summary = '\n---\n'.join(
+
+                [f'玩家{s["player_id"]}: {s["content"][:300]}' for s in speeches_all]
+
+            )
+
+            elim_info = ', '.join(
+
+                f'玩家{eid}({_role_cn(eliminated_roles.get(eid, "?"))})'
+
+                for eid in state.get('eliminated_all', [])
+
+            ) if state.get('eliminated_all') else '无'
+
+
+
+            human_vote = interrupt({
+
+                'type': 'vote', 'player_id': human_id,
+
+                'valid_targets': valid_targets, 'speeches_summary': speeches_summary,
+
+                'alive_players': alive, 'eliminated_info': elim_info,
+
+                'round_num': round_num,
+
+                'prompt': f'Round {round_num} 投票。\n发言:\n{speeches_summary}\n可投:{valid_targets}。回复编号或弃权。已淘汰:{elim_info}',
+
+            })
+
+            hv = human_vote.strip() if isinstance(human_vote, str) else ''
+
+            if hv == '弃权':
+
+                votes_all[str(human_id)] = -1
+
+                glog = [_log_entry(state, 'vote', f'玩家{human_id}(真人)弃权', player_id=human_id, target=-1, round=round_num)]
+
+                log.info('玩家%d(真人)弃权', human_id)
+
+            else:
+
+                try:
+
+                    target = int(hv)
+
+                    votes_all[str(human_id)] = target if target in valid_targets else -1
+
+                    glog = [_log_entry(state, 'vote', f'玩家{human_id}(真人)投票给玩家{target}', player_id=human_id, target=target, round=round_num)]
+
+                    log.info('玩家%d(真人)投票: 玩家%d', human_id, target)
+
+                except ValueError:
+
+                    votes_all[str(human_id)] = -1
+
+                    glog = [_log_entry(state, 'vote', f'玩家{human_id}(真人)弃权', player_id=human_id, target=-1, round=round_num)]
+
+                    log.info('玩家%d(真人)投票解析失败，默认弃权, human_id')
+
+            vote_cursor += 1
+
+            return {
+
+                'votes': votes_all, 'vote_cursor': vote_cursor,
+
+                'phase': 'day_vote', 'game_log': glog,
+                'game_round': round_num,
+
+            }
+
+        else:
+
+            # LLM player votes
+
+            try:
+
+                t0 = time.time()
+
+                target = generate_vote(pid, state)
+
+                elapsed = time.time() - t0
+
+                v = target if target is not None else -1
+
+                votes_all[str(pid)] = v
+
+                p_role = players[str(pid)]['role']
+
+                label = f'投票给玩家{target}' if target else '弃权'
+
+                glog = [_log_entry(state, 'vote', f'玩家{pid}({_role_cn(p_role)}){label}',
+
+                                   player_id=pid, target=target, round=round_num)]
+
+                log.info('玩家%d(LLM,%s)投票(%.1fs): %s', pid, _role_cn(p_role), elapsed, label)
+
+                vote_cursor += 1
+
+                return {
+
+                    'votes': votes_all, 'vote_cursor': vote_cursor,
+
+                    'phase': 'day_vote', 'game_log': glog,
+                    'game_round': round_num,
+
+                }
+
+            except Exception:
+
+                log.error('玩家%d投票生成失败:\n%s', pid, traceback.format_exc())
+
+                votes_all[str(pid)] = -1
+
+                glog = [_log_entry(state, 'vote_error', f'玩家{pid}投票失败，默认弃权', round=round_num)]
+
+                vote_cursor += 1
+
+                return {
+
+                    'votes': votes_all, 'vote_cursor': vote_cursor,
+
+                    'phase': 'day_vote', 'game_log': glog,
+                    'game_round': round_num,
+
+                }
+
+
+
+    # All players have voted - tally results
+
+    vote_counts = {}
+
+    for voter_id, target in votes_all.items():
+
+        if target is not None and target > 0:
+
+            vote_counts[target] = vote_counts.get(target, 0) + 1
+
+
+
+    eliminated_player = None
+
+    max_votes = 0
+
+    if vote_counts:
+
+        max_votes = max(vote_counts.values())
+
+        candidates = [pid for pid, count in vote_counts.items() if count == max_votes]
+
+        if len(candidates) == 1:
+
+            eliminated_player = candidates[0]
+
+
+
+    # Build vote tally data for frontend display
+
+    _vt = {
+
+        'votes': {str(k): v for k, v in votes_all.items()},
+
+        'counts': vote_counts,
+
+        'eliminated': eliminated_player,
+
+    }
+
+
+
+    eliminated_roles = dict(state.get('eliminated_roles', {}))
+
+    eliminated_all = list(state.get('eliminated_all', []))
+
+
+
+    if eliminated_player is not None and eliminated_player > 0 and str(eliminated_player) in players:
+
+        eliminated_all.append(eliminated_player)
+
+        el_role = players[str(eliminated_player)]['role']
+
+        eliminated_roles[eliminated_player] = el_role
+
+        players[str(eliminated_player)]['is_alive'] = False
+
+elimination_msg = f'玩家{eliminated_player}({_role_cn(el_role)})被投票淘汰'
+        glog = [_log_entry(state, 'elimination', elimination_msg, target=eliminated_player, round=round_num)]
+
+        log.info('投票淘汰: 玩家%d(%s), 票数=%d', eliminated_player, _role_cn(el_role), max_votes)
+
+    else:
+
+        elimination_msg = '本轮投票平票，无人被淘汰'
+
+        glog = [_log_entry(state, 'tie', '投票平票，无人淘汰', round=round_num)]
+
+        log.info('投票平票')
+
+
+
+    alive = _players_alive(state)
+
+
+
+    # Build vote summary for round memory
+
+    vote_lines = []
+
+    for voter_id, target in votes_all.items():
+
+        vid = int(voter_id)
+
+        if target is not None and target > 0:
+
+            vote_lines.append(f'玩家{vid} → 投玩家{target}')
+
+        else:
+
+            vote_lines.append(f'玩家{vid} → 弃权')
+
+    vote_summary = '\n'.join(vote_lines)
+
+    vote_result_line = elimination_msg
+
+
+
+    # Write vote summary to all alive player memories
+
+    player_memories = state.get('player_memories', {})
+
+    vote_mem_entry = f'=== Round {round_num} 投票 ===\n{vote_summary}\n结果: {vote_result_line}\n当前存活: {alive}'
+
+    for pid in alive:
+
+        pid_str = str(pid)
+
+        if pid_str not in player_memories:
+
+            player_memories[pid_str] = []
+
+        player_memories[pid_str].append({'role': 'system', 'content': vote_mem_entry})
+
+
+
+
+    is_over, winner = _check_win(state)
+
+    if is_over:
+
+        glog.append(_log_entry(state, 'game_over', f'游戏结束！{winner}阵营获胜', round=round_num))
+
+        log.info('游戏结束: %s阵营获胜', winner)
+
+        # Merge all dead players' roles into eliminated_roles for final display
+        for pid_str, pdata in players.items():
+            if not pdata.get('is_alive', True):
+                eliminated_roles[int(pid_str)] = pdata['role']
+
+
+
+    log.info('day_vote 完成，淘汰:%s, game_over=%s', eliminated_player, is_over)
+
+
+
+    updated_mem = {}
+
+    for k, v in player_memories.items():
+
+        updated_mem[k] = list(v)
+
+
+
+    # Archive this round speeches and votes into history
+    sh = dict(state.get('speeches_history', {}))
+    vh = dict(state.get('votes_history', {}))
+    sh[round_num] = list(speeches_all)
+    vh[round_num] = dict(votes_all)
+
+    return {
+
+        'votes': votes_all, 'eliminated_all': eliminated_all,
+
+        'eliminated_roles': eliminated_roles,
+
+        'alive_player_ids': alive, 'players': players,
+
+        'game_over': is_over, 'winner': winner if is_over else None,
+        'game_round': round_num,
+
+        'phase': 'game_over' if is_over else 'day_eliminate',
+
+        'werewolf_kill_target': None, '_night_step': 0,
+
+        '_vote_tally': _vt, '_eliminated_today': eliminated_player,
+
+        'god_announcement': state.get('god_announcement', '') + ' | ' + elimination_msg,
+
+        'game_log': glog,
+
+        'speeches_history': sh, 'votes_history': vh,
+
+        'player_memories': updated_mem,
+
+    }
+    log.warning('TRACE day_announcement RETURN(non-gameover) night_killed_ids=%s eliminated_roles=%s', night_killed_ids, eliminated_roles)
+
+
+
+
+
+
+
+
+
+# ==================== 5b. day_eliminate (vote result confirmation) ====================
+
+
+
+def node_day_eliminate(state: GameState) -> dict:
+
+    """Show vote result and wait for human confirmation before proceeding to night."""
+
+    round_num = state.get('game_round', 1)
+
+    tally = state.get('_vote_tally', {})
+
+    eliminated = state.get('_eliminated_today')
+
+    is_over = state.get('game_over', False)
+
+
+
+    log.info('=== NODE: day_eliminate (round %d) ===', round_num)
+
+
+
+    # If game is already over, skip
+
+    if is_over:
+
+        return {'phase': 'game_over', 'game_round': round_num}
+
+
+
+    # Build display info
+
+    votes = tally.get('votes', {})
+
+    counts = tally.get('counts', {})
+
+    eliminated_roles = state.get('eliminated_roles', {})
+
+
+
+    vote_lines = []
+
+    for voter_id, target in votes.items():
+
+        vid = int(voter_id)
+
+        if target is not None and target > 0:
+
+            vote_lines.append(f'玩家{vid} 家玩家{target}')
+
+        else:
+
+            vote_lines.append(f'玩家{vid} → 弃权')
+
+
+
+    count_lines = []
+
+    for pid, cnt in sorted(counts.items(), key=lambda x: -x[1]):
+
+        count_lines.append(f'玩家{pid}:{cnt}票')
+
+
+
+    elim_info = ''
+
+    if eliminated is not None and eliminated > 0:
+
+        role = eliminated_roles.get(eliminated, '?')
+
+        elim_info = f'玩家{eliminated}({_role_cn(role)})'
+
+
+
+    # Interrupt to show vote result
+
+    interrupt({
+
+        'type': 'vote_result',
+
+        'vote_lines': '\n'.join(vote_lines),
+
+        'count_lines': ' | '.join(count_lines),
+
+        'eliminated_player': eliminated,
+
+        'eliminated_info': elim_info,
+
+        'round_num': round_num,
+
+        'prompt': f'第{round_num}轮投票结果\n' + '\n'.join(vote_lines) + '\n票数: ' + ' | '.join(count_lines) + (f'\n淘汰: {elim_info}' if elim_info else '\n平票，无人淘汰'),
+
+    })
+
+
+
+    # After human confirmation, proceed to night
+
+    log.info('day_eliminate: 确认, -> night_werewolf')
+
+    return {
+
+        'phase': 'night',
+        'game_round': round_num,
+
+        '_vote_tally': {},
+
+        '_eliminated_today': None,
+
+        'game_log': [_log_entry(state, 'eliminate_done', f'第{round_num}轮投票结果已确认，进入夜', round=round_num)],
+
+    }
+
+
+
+
+
+def route_after_eliminate(state: GameState):
+
+    if state.get('game_over', False):
+
+        log.info('路由(eliminate): game_over -> END')
+
+        return '__end__'
+
+    log.info('路由(eliminate): -> night_werewolf')
+
+    return 'night_werewolf'
+
+
+
+
+
+# ==================== 6. Routing ====================
+
+
+
+def route_after_announcement(state: GameState):
+
+    is_over = state.get('game_over', False)
+
+    phase = state.get('phase', '')
+
+    log.info('??(announcement): game_over=%s, phase=%s', is_over, phase)
+
+    if is_over or phase == 'game_over':
+
+        log.info('??(announcement): -> END (game over)')
+
+        return '__end__'
+
+    alive = [int(pid) for pid, p in state.get('players', {}).items() if p.get('is_alive') and int(pid) > 0]
+
+    if not alive:
+
+        log.warning('??(announcement): -> END (no alive players)')
+
+        return '__end__'
+
+    log.info('??(announcement): -> day_speeches')
+
+    return 'day_speeches'
+
+def route_after_speeches(state: GameState):
+
+    if state.get('game_over', False):
+
+        log.info('路由(speeches): game_over -> END')
+
+        return '__end__'
+
+    phase = state.get('phase', '')
+
+    if phase == 'day_speeches':
+
+        log.info('路由(speeches): 继续发言 (cursor=%d)', state.get('speech_cursor', 0))
+
+        return 'day_speeches'
+
+    log.info('路由(speeches): 发言完成 -> day_vote')
+
+    return 'day_vote'
+
+
+
+
+
+def route_after_vote(state: GameState):
+
+    if state.get('game_over', False):
+
+        log.info('路由(vote): game_over -> END')
+
+        return '__end__'
+
+    phase = state.get('phase', '')
+
+    if phase == 'day_vote':
+
+        log.info('路由(vote): 继续投票 (cursor=%d)', state.get('vote_cursor', 0))
+
+        return 'day_vote'
+
+    if phase == 'day_eliminate':
+
+        log.info('路由(vote): 投票完成 -> day_eliminate')
+
+        return 'day_eliminate'
+
+    log.info('路由(vote): 投票完成 -> night_werewolf')
+
+    return 'night_werewolf'
+
+
+
+
+
+# ==================== Build Graph ====================
+
+
+
+def build_graph() -> StateGraph:
+
+    workflow = StateGraph(GameState)
+
+    workflow.add_node('init_game', node_init_game)
+
+    workflow.add_node('night_werewolf', node_night_werewolf)
+    workflow.add_node('night_witch', node_night_witch)
+    workflow.add_node('night_seer', node_night_seer)
+
+    workflow.add_node('day_announcement', node_day_announcement)
+
+    workflow.add_node('day_speeches', node_day_speeches)
+
+    workflow.add_node('day_vote', node_day_vote)
+
+    workflow.add_node('day_eliminate', node_day_eliminate)
+
+
+
+    workflow.set_entry_point('init_game')
+
+    workflow.add_edge('init_game', 'night_werewolf')
+
+    workflow.add_edge('night_werewolf', 'night_witch')
+    workflow.add_edge('night_witch', 'night_seer')
+    workflow.add_edge('night_seer', 'day_announcement')
+
+
+
+    workflow.add_conditional_edges('day_announcement', route_after_announcement, {
+
+        'day_speeches': 'day_speeches', '__end__': END,
+
+    })
+
+
+
+    workflow.add_conditional_edges('day_speeches', route_after_speeches, {
+
+        'day_speeches': 'day_speeches', 'day_vote': 'day_vote', '__end__': END,
+
+    })
+
+
+
+    workflow.add_conditional_edges('day_vote', route_after_vote, {
+
+        'day_vote': 'day_vote', 'day_eliminate': 'day_eliminate', 'night_werewolf': 'night_werewolf', '__end__': END,
+
+    })
+
+
+
+    workflow.add_conditional_edges('day_eliminate', route_after_eliminate, {
+
+        'night_werewolf': 'night_werewolf', '__end__': END,
+
+    })
+
+
+
+    return workflow

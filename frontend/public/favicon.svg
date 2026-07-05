@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+  </defs>
+  <!-- background circle -->
+  <circle cx="32" cy="32" r="30" fill="url(#g)"/>
+  <!-- left ear -->
+  <polygon points="12,26 8,10 20,22" fill="#0a0a14"/>
+  <!-- right ear -->
+  <polygon points="52,26 56,10 44,22" fill="#0a0a14"/>
+  <!-- head shape -->
+  <polygon points="12,28 32,52 52,28 48,40 32,48 16,40" fill="#0a0a14"/>
+  <!-- snout -->
+  <polygon points="24,36 32,50 40,36" fill="#7c3aed" opacity="0.6"/>
+  <!-- left eye -->
+  <circle cx="22" cy="30" r="3" fill="#fbbf24"/>
+  <!-- right eye -->
+  <circle cx="42" cy="30" r="3" fill="#fbbf24"/>
+  <!-- nose -->
+  <ellipse cx="32" cy="38" rx="3" ry="2" fill="#0a0a14"/>
+</svg>

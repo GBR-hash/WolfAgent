@@ -1,0 +1,52 @@
+[project]
+name = "wolfagent"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "aiomysql>=0.3.2",
+    "alibabacloud-oss-v2>=1.2.4",
+    "bcrypt>=5.0.0",
+    "bm25s>=0.3.9",
+    "dashscope>=1.25.12",
+    "dbutils>=3.1.2",
+    "dotenv>=0.9.9",
+    "fastapi>=0.128.0",
+    "ipywidgets>=8.1.8",
+    "jieba>=0.42.1",
+    "langchain>=1.2.3",
+    "langchain-chroma>=1.1.0",
+    "langchain-community>=0.4.1",
+    "langchain-deepseek>=1.0.1",
+    "langchain-mcp-adapters>=0.2.1",
+    "langchain-mineru>=0.1.3",
+    "langchain-ollama>=1.1.0",
+    "langchain-tavily>=0.2.17",
+    "langchain-text-splitters>=1.1.2",
+    "langgraph-api>=0.7.60",
+    "langgraph-checkpoint-mysql>=3.0.0",
+    "langgraph-checkpoint-sqlite>=3.0.3",
+    "langgraph-cli[inmem]>=0.4.12",
+    "matplotlib>=3.11.0",
+    "mineru-open-sdk>=0.2.5",
+    "notebook>=7.5.2",
+    "openai>=2.15.0",
+    "pyjwt>=2.13.0",
+    "pymysql>=1.2.0",
+    "pypdf>=6.13.1",
+    "python-dotenv>=1.2.1",
+    "ragas>=0.4.3",
+    "scipy>=1.17.1",
+    "sentence-transformers>=5.5.1",
+    "sounddevice>=0.5.5",
+    "tavily-python>=0.7.22",
+    "torch>=2.12.0",
+    "uvicorn>=0.40.0",
+]
+
+[tool.uv]
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
