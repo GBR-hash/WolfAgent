@@ -733,76 +733,94 @@ def node_night_seer(state: GameState) -> dict:
 
 
 def node_night_last_words(state: GameState) -> dict:
-    """Night 1 only: werewolf-killed player gets last words. Runs after seer, before day announcement."""
+    """Night 1 only: generate last words for all night-killed players (wolf kill + witch poison).
+    Runs after seer, before day announcement."""
     round_num = state.get("game_round", 1)
-    
-    # Only round 1, only werewolf kill (not witch poison)
+
+    # Only round 1
     if round_num != 1:
         return {"phase": "day_announcement", "game_round": round_num}
-    
+
     kill_target = state.get("werewolf_kill_target")
     heal_target = state.get("witch_heal_target")
-    
-    # No kill or kill was healed: skip last words
-    if kill_target is None or kill_target <= 0 or heal_target == kill_target:
+    poison_target = state.get("witch_poison_target")
+
+    # Collect all players killed tonight (dedup)
+    killed_pids = []
+    if kill_target and kill_target > 0 and heal_target != kill_target:
+        killed_pids.append(kill_target)
+    if poison_target and poison_target > 0 and poison_target not in killed_pids:
+        killed_pids.append(poison_target)
+
+    if not killed_pids:
         return {"phase": "day_announcement", "game_round": round_num}
-    
+
     players = state["players"]
     human_id = state.get("human_player_id", 7)
-    killed_pid = kill_target
-    
-    log.info("=== NODE: night_last_words (round %d, killed=%d) ===", round_num, killed_pid)
-    
-    last_words = ""
-    if killed_pid == human_id:
-        # Human player killed: interrupt for last words input
-        human_choice = interrupt({
-            "type": "last_words",
-            "killed_player": human_id,
-            "prompt": "你在第1晚被狼人杀害了！这是你的遗言机会，50字以内。你可以选择暴露或隐瞒身份。",
-            "game_round": round_num,
-        })
-        last_words = human_choice.strip() if isinstance(human_choice, str) else ""
-    else:
-        # LLM player killed: generate last words
-        try:
-            last_words = _generate_last_words(killed_pid, state)
-        except Exception:
-            log.error("遗言生成失败:\n%s", traceback.format_exc())
-            last_words = ""
-    
-    # Truncate if too long
-    if len(last_words) > 80:
-        last_words = last_words[:80]
-    
-    # Store last words in state and game log
+
+    log.info("=== NODE: night_last_words (round %d, killed=%s) ===", round_num, killed_pids)
+
     glog = []
-    if last_words:
-        glog.append(_log_entry(state, "last_words", f"第1晚遗言(玩家{killed_pid}): {last_words}", round=1, player_id=killed_pid))
-        
-        # Write to all alive player memories
-        player_memories = state.get("player_memories", {})
-        alive = _players_alive(state)
-        mem_entry = f"第1晚遗言(玩家{killed_pid}): {last_words}"
-        for pid in alive:
-            pid_str = str(pid)
-            if pid_str not in player_memories:
-                player_memories[pid_str] = []
-            player_memories[pid_str].append({"role": "system", "content": mem_entry})
-        
-        updated_mem = {}
-        for k, v in player_memories.items():
-            updated_mem[k] = list(v)
-        
-        return {
-            "phase": "day_announcement",
-            "game_round": round_num,
-            "game_log": glog,
-            "player_memories": updated_mem,
-            "_last_words": {"player_id": killed_pid, "content": last_words},
-        }
-    
-    return {"phase": "day_announcement", "game_round": round_num}
+    player_memories = state.get("player_memories", {})
+    alive = _players_alive(state)
+    first_last_words = None
+
+    for killed_pid in killed_pids:
+        pid_str = str(killed_pid)
+        if pid_str not in players:
+            continue
+
+        last_words = ""
+        if killed_pid == human_id:
+            # Human player killed: interrupt for last words input
+            human_choice = interrupt({
+                "type": "last_words",
+                "killed_player": human_id,
+                "prompt": "你在第1晚被淘汰了！这是你的遗言机会，50字以内。你可以选择暴露或隐瞒身份。",
+                "game_round": round_num,
+            })
+            last_words = human_choice.strip() if isinstance(human_choice, str) else ""
+        else:
+            # LLM player killed: generate last words
+            try:
+                last_words = _generate_last_words(killed_pid, state)
+            except Exception:
+                log.error("遗言生成失败:\n%s", traceback.format_exc())
+                last_words = ""
+
+        # Truncate if too long
+        if len(last_words) > 80:
+            last_words = last_words[:80]
+
+        if last_words:
+            glog.append(_log_entry(state, "last_words", f"第1晚遗言(玩家{killed_pid}): {last_words}", round=1, player_id=killed_pid))
+
+            # Write to all alive player memories
+            mem_entry = f"第1晚遗言(玩家{killed_pid}): {last_words}"
+            for pid in alive:
+                ps = str(pid)
+                if ps not in player_memories:
+                    player_memories[ps] = []
+                player_memories[ps].append({"role": "system", "content": mem_entry})
+
+            if first_last_words is None:
+                first_last_words = {"player_id": killed_pid, "content": last_words}
+
+    if not glog:
+        return {"phase": "day_announcement", "game_round": round_num}
+
+    updated_mem = {}
+    for k, v in player_memories.items():
+        updated_mem[k] = list(v)
+
+    return {
+        "phase": "day_announcement",
+        "game_round": round_num,
+        "game_log": glog,
+        "player_memories": updated_mem,
+        "_last_words": first_last_words,
+    }
+
 
 
 # ==================== 3. day_announcement ====================

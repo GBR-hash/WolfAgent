@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '';
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('wolf_token');
@@ -53,7 +53,7 @@ export function createSSEConnection(gameId: string, onMessage: (state: unknown) 
 }
 
 export async function fetchRecords() {
-  const res = await fetch(API_BASE + '/records', { headers: { ...authHeaders() } });
+  const res = await fetch(API_BASE + '/records/', { headers: { ...authHeaders() } });
   if (!res.ok) throw new Error('Failed to fetch records');
   return res.json();
 }

@@ -10,6 +10,7 @@ from app.tools import (
     WEREWOLF_TOOLS, WITCH_TOOLS, SEER_TOOLS, kill_player, save_player, poison_player, check_player,
 )
 from app.prompts import (
+    GAME_RULES_COMMON,
     WEREWOLF_SYSTEM_PROMPT, WEREWOLF_SECRET_CHAT_PROMPT,
     WITCH_SYSTEM_PROMPT, SEER_SYSTEM_PROMPT, VILLAGER_SYSTEM_PROMPT,
     WEREWOLF_STRATEGY, SEER_STRATEGY, WITCH_STRATEGY, VILLAGER_STRATEGY,
@@ -75,6 +76,7 @@ def _build_role_prompt(player: dict, state: dict, extra_context: str = "", is_pu
                 alive_players=alive_str,
                 eliminated_info=eliminated_info,
                 extra_context=extra_context,
+                GAME_RULES_COMMON=GAME_RULES_COMMON,
             )
         else:
             prompt = WEREWOLF_SYSTEM_PROMPT.format(
@@ -83,6 +85,7 @@ def _build_role_prompt(player: dict, state: dict, extra_context: str = "", is_pu
                 eliminated_info=eliminated_info,
                 extra_context=extra_context + f'\n\n重要提醒：你是玩家{player_id}号，编号是{player_id}。发言时请用"我是{player_id}号玩家"来标识自己。',
                 strategy_section=WEREWOLF_STRATEGY.get(play_style, WEREWOLF_STRATEGY["balanced"]),
+            GAME_RULES_COMMON=GAME_RULES_COMMON,
             )
     elif role == "witch":
         heal_status = "可用" if state.get("witch_has_heal", True) else "已用"
@@ -112,6 +115,7 @@ def _build_role_prompt(player: dict, state: dict, extra_context: str = "", is_pu
             eliminated_info=eliminated_info,
             extra_context=extra_context + witch_action_context + f'\n\n重要提醒：你是玩家{player_id}号，编号是{player_id}。发言时请用"我是{player_id}号玩家"来标识自己。',
             strategy_section=WITCH_STRATEGY.get(play_style, WITCH_STRATEGY["balanced"]),
+            GAME_RULES_COMMON=GAME_RULES_COMMON,
         )
     elif role == "seer":
         # Build check history for prompt injection
@@ -131,6 +135,7 @@ def _build_role_prompt(player: dict, state: dict, extra_context: str = "", is_pu
             eliminated_info=eliminated_info,
             extra_context=extra_context + seer_check_context + f'\n\n重要提醒：你是玩家{player_id}号，编号是{player_id}。发言时请用"我是{player_id}号玩家"来标识自己。',
             strategy_section=SEER_STRATEGY.get(play_style, SEER_STRATEGY["balanced"]),
+            GAME_RULES_COMMON=GAME_RULES_COMMON,
         )
     else:  # villager
         prompt = VILLAGER_SYSTEM_PROMPT.format(
@@ -138,8 +143,22 @@ def _build_role_prompt(player: dict, state: dict, extra_context: str = "", is_pu
             eliminated_info=eliminated_info,
             extra_context=extra_context + f'\n\n重要提醒：你是玩家{player_id}号，编号是{player_id}。发言时请用"我是{player_id}号玩家"来标识自己。',
             strategy_section=VILLAGER_STRATEGY.get(play_style, VILLAGER_STRATEGY["balanced"]),
+            GAME_RULES_COMMON=GAME_RULES_COMMON,
         )
     return prompt
+
+
+INFO_PRIORITY_SYSTEM = """
+【线索优先级体系 —— 始终按此权重判断】
+优先级1（铁证，直接锁定）：淘汰玩家身份暴露后与存活玩家声称冲突 → 必为狼人
+优先级2（强证据）：预言家查验结果 → "X号是狼人"直接采信
+优先级3（中等证据）：投票模式（票型）→ 谁保护了谁、谁冲票了谁
+优先级4（弱证据）：发言矛盾、语气可疑、行为反常
+优先级5（参考）：直觉、感觉、"此人不像好人"
+
+重要：高优先级证据可以直接覆盖低优先级判断。
+例如：即使某玩家发言"像个好人"，如果他被预言家验出是狼人，就必须投他。
+"""
 
 
 def _call_llm_with_tools(
@@ -235,18 +254,26 @@ def werewolf_discussion_and_kill(state: dict, secret_chat_history: list = None) 
                 c = msg.get("content", "")
                 lines.append(f"[{sender}?]: {c[:200]}")
             if lines:
-                chat_ctx = f"?????????????????\n" + "\n".join(lines) + "\n???????????????????\n\n"
+                chat_ctx = f"【秘密讨论记录】\n" + "\n".join(lines) + "\n【讨论结束】\n\n"
 
-        extra = f"""\n{chat_ctx}???????
+        extra = f"""\n{chat_ctx}【角色策略】
 {role_hints}
 
-???????
+【历史讨论】
 {_format_chat(state.get("werewolf_chat", []))}
 
-????????????????????? kill_player ???????
-?????{valid_targets_str}"""
+【击杀决策】
+请使用 kill_player 工具选择今晚的击杀目标。
+
+⚠️ 击杀优先级（从高到低）：
+1. 已明牌的神职玩家（有人跳了预言家/女巫且被相信 → 立刻刀！）
+2. 指挥投票方向的活跃玩家（可能是隐藏神职或高配村民）
+3. 发言犀利的分析型玩家（威胁最大）
+4. 其他存活玩家
+
+可杀目标：{valid_targets_str}"""
         prompt = _build_role_prompt(player, state, extra)
-        llm_prompt = f"?????????????????????? kill_player ???????????????????{valid_targets_str}?"
+        llm_prompt = f"请使用 kill_player 工具选择击杀目标。优先刀明牌神职！可杀目标：{valid_targets_str}。"
 
         result = _call_llm_with_tools(prompt, llm_prompt, WEREWOLF_TOOLS, temperature=0.8)
         response_text = result.get("content", "")
@@ -441,7 +468,7 @@ def seer_check_action(state: dict) -> dict:
 
 
 def _generate_last_words(player_id: int, state: dict) -> str:
-    """Generate last words for a player killed on night 1 (werewolf kill only).
+    """Generate last words for a player killed on night 1.
     Role-specific prompt: seers know check results, witches know action history, wolves know teammates."""
     player = state["players"].get(str(player_id))
     if not player:
@@ -478,13 +505,16 @@ def _generate_last_words(player_id: int, state: dict) -> str:
         role_context = "你是普通村民，可以根据自己的判断发表遗言。"
     
     prompt = f"""你是狼人杀游戏的玩家{player_id}号，你的身份是{_get_role_name(role)}。
-你在第1晚被狼人杀害了，现在是你的遗言机会。
+你在第1晚被淘汰了（你不知道自己是怎么被淘汰的），现在是你的遗言机会。
 
 {role_context}
 
-请发表你的遗言，严格控制在50字以内。你可以：
+请发表你的遗言，严格控制在50字以内。
+
+重要提示：目前是第一晚，尚未进行过任何白天公开发言，请不要以"某人发言划水"、"某人行为奇怪"、"某人偏狼"等理由指认其他玩家——这些判断还没有任何依据。你唯一能做的：决定是否暴露自己的真实身份，或选择沉默。
+
+你可以：
 - 选择暴露自己的真实身份，或假装成其他身份带节奏
-- 分析可能的狼人，给好人阵营提供线索
 - 不要超过50字！简短有力"""
 
     try:
@@ -718,38 +748,38 @@ def generate_speech(player_id: int, state: dict) -> str:
             from collections import Counter
             tally = Counter(int(t) for t in prev_votes.values() if t and int(t) > 0)
             tally_lines = [f"玩家{pid}:{cnt}?" for pid, cnt in tally.most_common()]
-            vote_history_text = "???" + "; ".join(vote_lines) + "????" + ", ".join(tally_lines)
+            vote_history_text = "投票：" + "; ".join(vote_lines) + " 票数：" + ", ".join(tally_lines)
             if tally:
                 max_cnt = tally.most_common(1)[0][1]
                 top = [pid for pid, cnt in tally.items() if cnt == max_cnt]
                 if len(top) == 1:
-                    vote_history_text += f"??????{top[0]}?????"
+                    vote_history_text += f" 淘汰：玩家{top[0]}号"
                 else:
-                    vote_history_text += "??????"
+                    vote_history_text += " 平票，无人淘汰"
 
     # Build mode-dependent role hints based on play_style
     ps = state.get("play_style", "balanced")
     if ps == "aggressive":
-        wolf_hint = "?1????????/?????????????????"
-        seer_hint = "?1?????????2???????????????????"
-        witch_hint = "??????????????????????????"
-        villager_hint = "????????????????????????"
+        wolf_hint = "第1轮起主动跳假身份/和队友配合制造混乱"
+        seer_hint = "第1轮暗示有信息，第2轮公布所有查验结果并硬刚对跳者"
+        witch_hint = "用药立刻公开，有毒就威胁毒人，主动指挥投票"
+        villager_hint = "频繁挡刀假装神职，带头分析投票模式，带动全场节奏"
     elif ps == "conservative":
-        wolf_hint = "???????????????????"
-        seer_hint = "?????????????????????"
-        witch_hint = "???????????????"
-        villager_hint = "????????????"
+        wolf_hint = "全程伪装村民，不跳任何身份，低调随大流"
+        seer_hint = "只在查到狼人时才跳身份，其他时间以村民身份发言"
+        witch_hint = "永不暴露身份，只做村民式逻辑分析"
+        villager_hint = "纯逻辑分析找狼人，不挡刀不伪装"
     else:  # balanced
-        wolf_hint = "?2?????????/???????????????"
-        seer_hint = "?2????????????????????????"
-        witch_hint = "?????????????????????"
-        villager_hint = "????????????????????"
+        wolf_hint = "第2轮起考虑跳假预言家/女巫混淆视听"
+        seer_hint = "第2轮起公布查验结果，有人对跳用查验链揭穿"
+        witch_hint = "有用药信息就跳出来说明，局势不明时主动引导"
+        villager_hint = "积极分析发言和投票，必要时跳假身份挡刀"
     
-    role_hints = f"""- ???????{wolf_hint}
-- ????????{seer_hint}
-- ???????{witch_hint}
-- ???????{villager_hint}"""
-    # ?????????????????????
+    role_hints = f"""- 狼人策略：{wolf_hint}
+- 预言家策略：{seer_hint}
+- 女巫策略：{witch_hint}
+- 村民策略：{villager_hint}"""
+    # 本轮角色策略提示（根据play_style生成）
     secret_chat_reminder = ""
     # 狼人读取夜间秘密讨论，在白天发言时记住策略
     if role == "werewolf":
@@ -802,49 +832,63 @@ def generate_speech(player_id: int, state: dict) -> str:
     speech_pos = len(speeches) + 1
     total_alive = len(state.get("alive_player_ids", []))
     if speech_pos <= 2:
-        pos_hint = "???????????????????????????????"
+        pos_hint = "你是最早发言的，可以自由发挥，不需要回应别人"
     elif speech_pos >= total_alive - 1:
-        pos_hint = "?????????????????????????????"
+        pos_hint = "你是最后发言的，需要总结前面所有人的观点，给出明确的投票建议"
     else:
-        pos_hint = "???????????????????????"
+        pos_hint = "你在中间发言，可以点评前面的观点，引出新的分析方向"
+
 
     # Random opener to avoid identical phrasing
     import random as _random
     openers = [
         f"玩家{player_id}号",
-        f"??????{player_id}?",
-        f"???????{player_id}????????????",
+        f"我是{player_id}号",
+        f"轮到我了，我是{player_id}号玩家",
     ]
     opener = _random.choice(openers)
 
     # Random style hint to diversify speech patterns
     style_hints = [
-        "????????????????",
-        "???????????????????",
-        "??????????????????",
+        "简洁有力，直接说重点",
+        "用分析的语气表达，不要只总结别人的话",
+        "自信表达你的判断，不要模棱两可",
     ]
     style_hint = _random.choice(style_hints)
-    llm_prompt = f'''??{player_id}????
+    llm_prompt = f'''你是玩家{player_id}号。
 
-????{round_num}??????
+第{round_num}轮发言框架：
 {pos_hint}
 
-???????
-{speeches_summary}
+【已淘汰玩家】{elim_info_str}
 
-?????{night_result}
-?????{vote_history_text}
-??????{elim_info_str}
+你必须按以下结构组织发言，每个部分都要覆盖：
 
-??"{opener}"???{style_hint}??????????????
-- ????????????????????????
-- ?????????????
-- ????????"????"?"?????"???????????
-- ???????????????????????'''
+1.【身份判断】如果淘汰玩家的身份已暴露，首先就此发表看法。
+例如："玩家4号被淘汰后身份是预言家，这说明之前也跳预言家的
+玩家1号必定是狼人，我今天建议全票出1号。"
+
+2.【查验/用药信息】（你是神职时）公布你的查验结果或用药情况。
+
+3.【票型回顾】（第2轮起）分析上一轮的投票模式。谁投了谁？
+
+4.【发言分析】分析最可疑的1-2名玩家的发言。
+指出具体矛盾，不要笼统地说"有人可疑"。
+
+5.【投票建议】明确说"我建议今天投票给X号"，并给出理由。
+必须给出一个具体的投票建议！
+
+发言规则：
+- 严格控制在300字以内，超过会被截断
+- 禁止说"我是X号玩家，身份是..."——除神职跳身份外，不要在发言开头报编号
+- 如果你发现了身份冲突（铁狼），必须大声说出来，不要藏着！
+- 今晚的结果：{night_result}
+- 上轮投票详情：{vote_history_text}
+- 你必须以"{opener}"开头，{style_hint}。说自己的观点，不要总结别人的观点。不要重复上面已经说过的内容。'''
 
     speech = _call_llm_text(prompt, llm_prompt, temperature=0.9, history=history)
     _add_to_memory(state, player_id, [{"role": "assistant", "content": speech}])
-    return speech or "????"
+    return speech or "（发言生成失败）"
 
 
 
@@ -861,7 +905,7 @@ def generate_vote(player_id: int, state: dict):
     night_killed = set(state.get("_night_killed_ids", []))
     eliminated_roles = {k: v for k, v in eliminated_roles.items() if int(k) not in night_killed}
     alive_ids = state.get("alive_player_ids", [])
-    valid_targets = [int(x) for x in alive_ids]
+    valid_targets = [int(x) for x in alive_ids if int(x) != player_id]
     valid_targets_str = ", ".join(str(t) for t in valid_targets)
     speeches_summary = "\n".join([f"玩家{s.get("player_id","?")}: {s.get("content","")[:150]}" for s in speeches]) if speeches else "（暂无发言）"
     elim_parts = []
@@ -879,23 +923,46 @@ def generate_vote(player_id: int, state: dict):
 已被淘汰的玩家（含身份）：{elim_info_str}
 
 请做出投票决定。记住：
-- 狼人应该投票给村民或神职，同时要伪装成好人
-- 好人应该投票给最可疑的玩家
-- 如果有明确的狼人信息，应该投票给狼人
-- 绝对不要弃权！弃权等于帮狼人获胜
-- 如果你认为某人是狼人，请果断投票！不投票会让狼人获胜！'''
+
+⚠️ 最重要的推理规则（优先级最高）：
+如果淘汰玩家的身份已暴露，立刻检查是否有人之前声称过相同身份！
+身份冲突 = 铁狼！例如：淘汰的4号是预言家，而1号也曾跳预言家 → 1号必为狼人！
+这比任何发言分析都更可靠！
+
+投票原则：
+- 如果有身份冲突（铁狼证据）→ 必须投那个人，不需犹豫
+- 如果有预言家查验"X号是狼人"→ 优先投X号
+- 如果有明确狼人信息 → 果断投票
+- 如果没有以上证据 → 投最可疑的玩家
+- 绝对不要弃权！弃权等于帮狼人获胜！'''
     prompt = _build_role_prompt(player, state, extra)
     history = _get_player_memory(state, player_id)
 
-    llm_prompt = f'''请按以下步骤做出投票决定：
+    llm_prompt = f'''请按以下优先级顺序做出投票决定（高优先级证据可直接决定投票，无需走后续步骤）：
 
-第一步：回顾你在本轮发言中表达了什么观点，你当时怀疑谁。
+第1步（最高优先级 —— 身份冲突检查）：
+已被淘汰的玩家身份是否已经暴露？
+存活玩家中是否有人之前声称过与被淘汰者相同的身份？
+→ 例如：淘汰的玩家4号是预言家，而玩家1号之前也自称预言家
+→ 那么玩家1号100%是狼人！直接投票给他！不需要继续分析！
+→ 身份冲突 = 铁狼，这是最硬的证据。
 
-第二步：通读全场所有发言，有没有新的线索？你之前的判断是否需要修正？
-有没有玩家发言前后矛盾？有没有人在带节奏？
+第2步（预言家查验结果）：
+预言家是否公布了"X号是狼人"的查验结果？
+→ 如果有，直接采信，投票给X号。
 
-第三步：基于以上分析，做出最终投票决定。
-可投票的玩家：{valid_targets_str}。你必须投票给其中一个！回复一个数字。不要回复"弃权"——弃权等于帮狼人获胜！'''
+第3步（票型分析）：
+上一轮谁投了谁？被淘汰者的投票对象是谁？
+如果某玩家总是在保护另一个玩家（从不投他），他们可能是狼队友。
+
+第4步（发言矛盾分析）：
+同一玩家在不同轮次的发言是否有重大矛盾？
+例如：上一轮怀疑A，这一轮突然转而攻击B，且没有合理解释。
+
+第5步（兜底）：
+如果以上步骤都无法确定，投你最怀疑的存活玩家。
+可投票的玩家：{valid_targets_str}。你必须投票给其中一个！
+回复一个数字。禁止回复"弃权"——弃权等于帮狼人获胜！'''
 
     vote_response = _call_llm_text(prompt, llm_prompt, temperature=0.4, history=history)
 

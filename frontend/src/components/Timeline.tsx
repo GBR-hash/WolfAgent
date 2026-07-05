@@ -8,10 +8,10 @@ export function Timeline() {
   const { state } = useGame();
   const { speakNow } = useSpeech();
 
-  const speechesHistory: Record<number, SpeechEntry[]> | undefined = state?.speeches_history;
-  const votesHistory: Record<number, Record<string, number>> | undefined = state?.votes_history;
-  const eliminatedRoles: Record<string, string> | undefined = state?.eliminated_roles;
-  const rounds = speechesHistory ? Object.keys(speechesHistory).map(Number).sort((a, b) => a - b) : [];
+  const speechesHistory: Record<number, SpeechEntry[]> = state?.speeches_history ?? {};
+  const votesHistory: Record<number, Record<string, number>> = state?.votes_history ?? {};
+  const eliminatedRoles: Record<string, string> = state?.eliminated_roles ?? {};
+  const rounds = Object.keys(speechesHistory).map(Number).sort((a, b) => a - b);
 
 
   // ALL hooks must be before any early return (Rules of Hooks)

@@ -5,7 +5,7 @@ export function VotesPanel() {
   const { state } = useGame();
   const votes = state?.votes ?? {};
   const entries = Object.entries(votes);
-  if (entries.length === 0) return null;
+  if (!state || entries.length === 0) return null;
 
   const tally: Record<number, number> = {};
   entries.forEach(([, target]) => {

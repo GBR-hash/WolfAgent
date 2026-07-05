@@ -31,7 +31,7 @@ export function LastWordsInput() {
       <div className="flex items-center gap-2 mb-2">
         <span className="text-2xl">💀</span>
         <h3 className="text-purple-300 font-bold text-lg">
-          你在第1晚被狼人杀害了
+          你在第1晚被淘汰了
         </h3>
       </div>
       <p className="text-gray-400 text-sm mb-3">

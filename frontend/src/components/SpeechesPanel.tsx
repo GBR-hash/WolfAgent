@@ -20,6 +20,7 @@ export function SpeechesPanel() {
   }, [speeches.length]);
 
   if (speeches.length === 0) return null;
+  if (!state) return null;
 
   return (
     <div className="mb-4 animate-fade-in">
