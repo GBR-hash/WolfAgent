@@ -71,7 +71,7 @@ export function Layout() {
   return (
     <div className="flex h-screen bg-night text-gray-100">
       {/* Desktop sidebar */}
-      <div className="hidden md:block flex-shrink-0">
+      <div className="hidden md:block flex-shrink-0" data-desktop-sidebar>
         <Sidebar />
       </div>
 

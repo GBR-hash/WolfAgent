@@ -53,13 +53,13 @@ export function createSSEConnection(gameId: string, onMessage: (state: unknown) 
 }
 
 export async function fetchRecords() {
-  const res = await fetch(API_BASE + '/records/', { headers: { ...authHeaders() } });
+  const res = await fetch(API_BASE + '/records', { headers: { ...authHeaders() } });
   if (!res.ok) throw new Error('Failed to fetch records');
   return res.json();
 }
 
 export async function fetchRecordDetail(gameId: string) {
-  const res = await fetch(API_BASE + '/records/' + gameId, { headers: { ...authHeaders() } });
+  const res = await fetch(API_BASE + '/records' + gameId, { headers: { ...authHeaders() } });
   if (!res.ok) throw new Error('Failed to fetch record');
   return res.json();
 }
