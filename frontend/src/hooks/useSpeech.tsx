@@ -20,6 +20,7 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
   const idxRef = useRef(0);
   const rateRef = useRef(2.0);
   const cancelFlag = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const speakNext = useCallback(() => {
     if (idxRef.current >= queueRef.current.length) {
@@ -64,36 +65,91 @@ export function SpeechProvider({ children }: { children: ReactNode }) {
     return chunks;
   }, []);
 
+  // Server TTS fallback for mobile browsers that don't support speechSynthesis
+  const speakServer = useCallback(async (text: string) => {
+    if (cancelFlag.current) return;
+    try {
+      const res = await fetch('/speak?text=' + encodeURIComponent(text));
+      if (!res.ok) throw new Error('TTS failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+      }
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        setIsPlaying(false);
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+      };
+      audio.onerror = () => {
+        setIsPlaying(false);
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+      };
+      await audio.play();
+    } catch {
+      setIsPlaying(false);
+    }
+  }, []);
+
   const speakNow = useCallback((text: string) => {
-    if (!text || !window.speechSynthesis) return;
+    if (!text) return;
     cancelFlag.current = true;
-    window.speechSynthesis.cancel();
-    queueRef.current = splitChunks(text);
-    idxRef.current = 0;
-    rateRef.current = 2.5;
-    setIsPlaying(true);
-    setIsPaused(false);
-    setTimeout(() => speakNext(), 60);
-  }, [speakNext, splitChunks]);
+    window.speechSynthesis?.cancel();
+
+    // Detect if browser TTS is available (desktop Chrome/Edge support it well)
+    const hasVoices = window.speechSynthesis && window.speechSynthesis.getVoices().length > 0;
+
+    if (hasVoices) {
+      // Browser TTS
+      queueRef.current = splitChunks(text);
+      idxRef.current = 0;
+      rateRef.current = 2.5;
+      setIsPlaying(true);
+      setIsPaused(false);
+      setTimeout(() => speakNext(), 60);
+    } else {
+      // Server TTS fallback
+      setIsPlaying(true);
+      speakServer(text);
+    }
+  }, [speakNext, splitChunks, speakServer]);
 
   const pause = useCallback(() => {
-    window.speechSynthesis.pause();
-    setIsPaused(true);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPaused(true);
+    } else {
+      window.speechSynthesis?.pause();
+      setIsPaused(true);
+    }
   }, []);
 
   const resume = useCallback(() => {
-    window.speechSynthesis.resume();
-    setIsPaused(false);
+    if (audioRef.current) {
+      audioRef.current.play();
+      setIsPaused(false);
+    } else {
+      window.speechSynthesis?.resume();
+      setIsPaused(false);
+    }
   }, []);
 
   const fastForward = useCallback((on: boolean) => {
-    // Include current chunk (idxRef.current - 1) to avoid skipping spoken content
+    if (audioRef.current) {
+      audioRef.current.playbackRate = on ? 2.0 : 1.0;
+      return;
+    }
+
     const startIdx = Math.max(0, idxRef.current - 1);
     const remaining = queueRef.current.slice(startIdx);
     if (remaining.length === 0) return;
 
     cancelFlag.current = true;
-    window.speechSynthesis.cancel();
+    window.speechSynthesis?.cancel();
 
     rateRef.current = on ? 3.0 : 2.5;
     queueRef.current = remaining;
