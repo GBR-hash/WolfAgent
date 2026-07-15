@@ -56,7 +56,7 @@ export function SpeechesPanel() {
             <div
               key={i}
               className={
-                'rounded-lg px-4 py-3 text-sm border-l-[3px] ' +
+                'rounded-lg px-3 py-2 md:px-4 md:py-3 text-sm border-l-[3px] ' +
                 (isHuman
                   ? 'bg-red-950/20 border-red-500'
                   : 'bg-night-card border-blue-500/50')

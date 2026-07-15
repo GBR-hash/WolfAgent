@@ -13,7 +13,7 @@ export function GameOverModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-night-card border border-night-border rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl animate-scale-in">
+      <div className="bg-night-card border border-night-border rounded-2xl p-6 md:p-8 max-w-lg w-full mx-4 shadow-2xl animate-scale-in">
         <div className="text-center mb-4">
           <div className="text-5xl mb-3">🏆</div>
           <h2 className="text-3xl font-bold text-gold mb-2">
@@ -46,7 +46,7 @@ export function GameOverModal() {
           ))}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
           <button
             className="flex-1 bg-gray-700/50 hover:bg-gray-700/80 border border-gray-600/30 text-gray-300 rounded-xl px-4 py-3 font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             onClick={dismissGameOver}

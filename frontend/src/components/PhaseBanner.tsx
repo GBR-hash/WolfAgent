@@ -60,7 +60,7 @@ export function PhaseBanner() {
   return (
     <div className={bgClass + ' border rounded-xl px-6 py-4 mb-4 transition-all duration-500 animate-fade-in'}>
       <div className="flex items-center gap-3 mb-3">
-        <span className={'text-2xl font-bold transition-colors duration-500 ' + cls}>{label}</span>
+        <span className={'text-xl md:text-2xl font-bold transition-colors duration-500 ' + cls}>{label}</span>
         {round > 0 && (
           <span className="text-gray-400 text-sm bg-night-card/50 px-3 py-1 rounded-full transition-all duration-300">
             第{round}轮

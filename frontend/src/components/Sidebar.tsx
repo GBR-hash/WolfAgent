@@ -14,7 +14,10 @@ interface RecordItem {
   created_at: string;
 }
 
-export function Sidebar() {
+export function Sidebar({ variant = 'sidebar', onClose }: {
+  variant?: 'sidebar' | 'bottomsheet';
+  onClose?: () => void;
+}) {
   const { state, startGame, reset, loginAction, logoutAction } = useGame();
   const [loading, setLoading] = React.useState(false);
   const [recordsOpen, setRecordsOpen] = useState(false);
@@ -26,6 +29,7 @@ export function Sidebar() {
   const players = state?.players ?? {};
   const humanRole = state?.human_role;
   const isFinished = state?.status === 'finished';
+  const isSheet = variant === 'bottomsheet';
 
   // Night-1 killed players: roles stay hidden until game over
   const night1Killed = new Set(state?._night_killed_ids ?? []);
@@ -38,9 +42,7 @@ export function Sidebar() {
   const shouldShowRole = (p: typeof sorted[0]) => {
     if (isFinished) return true;
     if (!p.is_alive) {
-      // Night-1 killed players stay hidden until game over
       if (night1Killed.has(p.player_id)) return false;
-      // Day-vote eliminated and night-2+ killed shown immediately
       return true;
     }
     return false;
@@ -69,13 +71,30 @@ export function Sidebar() {
 
   return (
     <>
-    <aside className="w-72 bg-night-card border-r border-night-border flex flex-col h-screen">
-      <div className="p-4 border-b border-night-border">
-        <h1 className="text-xl font-bold text-purple-300 flex items-center gap-2">
-          🐺 WolfAgent
-        </h1>
-        <p className="text-gray-500 text-xs mt-1">AI 狼人杀 · LangGraph</p>
-      </div>
+    <aside className={
+      isSheet
+        ? 'bg-night-card rounded-t-2xl max-h-[70vh] overflow-y-auto flex flex-col'
+        : 'w-72 bg-night-card border-r border-night-border flex flex-col h-screen'
+    }>
+      {/* Header */}
+      {isSheet ? (
+        <>
+          <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+            <div className="w-10 h-1 bg-gray-600 rounded-full" />
+          </div>
+          <div className="px-4 py-2.5 flex items-center justify-between border-b border-night-border flex-shrink-0">
+            <h1 className="text-lg font-bold text-purple-300">🐺 WolfAgent</h1>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-xl leading-none px-1">✕</button>
+          </div>
+        </>
+      ) : (
+        <div className="p-4 border-b border-night-border">
+          <h1 className="text-xl font-bold text-purple-300 flex items-center gap-2">
+            🐺 WolfAgent
+          </h1>
+          <p className="text-gray-500 text-xs mt-1">AI 狼人杀 · LangGraph</p>
+        </div>
+      )}
 
       {user && (
         <div className="px-4 py-2 border-b border-night-border bg-green-500/5">

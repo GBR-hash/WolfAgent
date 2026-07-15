@@ -50,7 +50,7 @@ export function VotesPanel() {
             <span
               key={voter}
               className={
-                'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs ' +
+                'inline-flex items-center gap-1 px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-xs ' +
                 (isHuman
                   ? 'bg-red-950/30 border border-red-500/50 text-red-300'
                   : 'bg-night-card border border-night-border text-gray-300')

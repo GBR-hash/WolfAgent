@@ -13,7 +13,7 @@ function GameSync() {
     const params = new URLSearchParams(window.location.search);
     const gid = params.get('game');
     if (gid && !state?.game_id) {
-      fetch('http://localhost:8000/game/' + gid + '/debug')
+      fetch('/game/' + gid + '/debug')
         .then(r => {
           if (!r.ok) {
             // Game no longer exists (server restarted) - clear URL and reset
