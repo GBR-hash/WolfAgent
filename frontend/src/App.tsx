@@ -6,7 +6,9 @@ import { Layout } from './components/Layout';
 
 function GameSync() {
   const { state, updateState, reset } = useGame();
-  useSSE(state?.game_id || null, updateState, reset);
+  // Only connect SSE if game is not finished
+  const sseGameId = state?.game_id && state?.status !== 'finished' ? state.game_id : null;
+  useSSE(sseGameId, updateState, reset);
 
   // Recover from URL on page refresh
   useEffect(() => {
@@ -16,7 +18,6 @@ function GameSync() {
       fetch('/game/' + gid + '/debug')
         .then(r => {
           if (!r.ok) {
-            // Game no longer exists (server restarted) - clear URL and reset
             console.warn('Game ' + gid + ' not found, resetting...');
             window.history.replaceState({}, '', '/');
             reset();
@@ -33,6 +34,7 @@ function GameSync() {
             is_waiting: d.is_waiting,
             interrupt: d.interrupt,
             human_role: d.state?.players?.['7']?.role || null,
+            _dismissedGameOver: d.status === 'finished' ? true : false,
           });
         })
         .catch(err => {

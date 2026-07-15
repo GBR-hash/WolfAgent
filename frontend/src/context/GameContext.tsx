@@ -101,6 +101,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const startGame = useCallback(async (role: string, playStyle: string = 'balanced') => {
     dispatch({ type: 'RESET' });
     const result = await newGame(role, playStyle);
+    // Persist game ID in URL so refresh restores the session
+    window.history.replaceState({}, '', '/?game=' + result.game_id);
     dispatch({
       type: 'SET_STATE',
       payload: {
@@ -120,6 +122,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   const reset = useCallback(() => {
+    window.history.replaceState({}, '', '/');
     dispatch({ type: 'RESET' });
   }, []);
 

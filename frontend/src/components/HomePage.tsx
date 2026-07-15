@@ -83,7 +83,7 @@ export function HomePage() {
     setStarting(true);
     try {
       const result = await startGame(selectedRole, playStyle);
-      window.history.replaceState(null, '', '?game=' + result.game_id);
+      // URL is now managed by GameContext.startGame
     } catch (e) {
       console.error(e);
     }
