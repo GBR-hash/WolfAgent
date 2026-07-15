@@ -102,7 +102,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'RESET' });
     const result = await newGame(role, playStyle);
     // Persist game ID in URL so refresh restores the session
-    window.history.replaceState({}, '', '/?game=' + result.game_id);
+    window.history.replaceState({}, '', '/wolf/?game=' + result.game_id);
     dispatch({
       type: 'SET_STATE',
       payload: {
@@ -122,7 +122,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   const reset = useCallback(() => {
-    window.history.replaceState({}, '', '/');
+    window.history.replaceState({}, '', '/wolf/');
     dispatch({ type: 'RESET' });
   }, []);
 
