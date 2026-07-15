@@ -2,6 +2,7 @@ import uuid, asyncio, logging, traceback, time, json
 from dotenv import load_dotenv
 load_dotenv()
 from fastapi import FastAPI, HTTPException, Header
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -583,6 +584,64 @@ async def debug(gid: str):
     )
 
 
+
+@app.get("/speak")
+async def speak(text: str):
+    import asyncio as _asyncio
+    from nls import NlsSpeechSynthesizer, token
+    from starlette.responses import StreamingResponse
+
+    tok = token.getToken(
+        _os.environ["NLS_AK_ID"],
+        _os.environ["NLS_AK_SECRET"],
+    )
+
+    q: _asyncio.Queue = _asyncio.Queue()
+    loop = _asyncio.get_running_loop()
+
+    def on_data(data, raw=None):
+        loop.call_soon_threadsafe(q.put_nowait, ("data", data))
+
+    def on_error(msg, raw=None):
+        loop.call_soon_threadsafe(q.put_nowait, ("error", str(msg)))
+
+    def on_completed(msg, raw=None):
+        loop.call_soon_threadsafe(q.put_nowait, ("done", None))
+
+    tts = NlsSpeechSynthesizer(
+        on_data=on_data,
+        on_error=on_error,
+        on_completed=on_completed,
+        token=tok,
+        appkey="1qLRqf02vTCzt90z",
+    )
+
+    def _run_tts():
+        tts.start(
+            text=text,
+            voice="laotie",
+            aformat="mp3",
+            volume=50,
+            speech_rate=204,
+            pitch_rate=4,
+            wait_complete=True,
+            start_timeout=10,
+            completed_timeout=30,
+        )
+
+    _asyncio.get_running_loop().run_in_executor(None, _run_tts)
+
+    async def generate():
+        while True:
+            kind, payload = await q.get()
+            if kind == "data":
+                yield payload
+            elif kind == "done":
+                return
+            elif kind == "error":
+                return
+
+    return StreamingResponse(generate(), media_type="audio/mpeg", headers={"X-Accel-Buffering": "no"})
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
