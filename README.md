@@ -4,7 +4,7 @@
 
 ## 公网地址
 
-🔗 http://101.37.118.247/wolf/
+🔗 https://wolfgo.top/wolf/
 
 ## 技术栈
 
