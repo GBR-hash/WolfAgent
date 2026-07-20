@@ -1,0 +1,10 @@
+# 终端1
+.\.venv\Scripts\activate 激活虚拟环境
+.\.venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 直接一键运行
+
+# 终端2
+.\.venv\Scripts\streamlit.exe run frontend.py --server.port 8501
+
+# 终端3
+cd frontend
+npx vite --host 0.0.0.0 --port 5173

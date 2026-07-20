@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.log
+.idea/
+.vscode/
+*.egg-info/
+dist/
+_diag.py
+_encoding_test.txt
+_split_night.py
+_server.log
